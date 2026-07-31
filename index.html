@@ -76,6 +76,12 @@
     <button onclick="document.getElementById('negativeWarningBanner').classList.add('hidden')" class="text-white hover:text-gray-200 font-bold text-base">&times;</button>
   </div>
 
+  <!-- Positive Milestone Alert Banner -->
+  <div id="debtFreeBanner" class="hidden max-w-md mx-auto mt-2 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold p-3 rounded-xl text-center shadow-sm flex items-center justify-center gap-2">
+    <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
+    <span id="debtFreeText">🎉 Positive Forecast Milestone: Debt Free Target Reached!</span>
+  </div>
+
   <!-- Main View Router -->
   <main class="max-w-md mx-auto p-3 space-y-3">
 
@@ -87,9 +93,10 @@
       </div>
 
       <div class="grid grid-cols-2 gap-2">
-        <select id="accountFilterSelect" onchange="renderApp()" class="select-custom bg-white border border-gray-300 rounded-xl p-2.5 text-xs font-medium text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
-          <option value="all">All accounts combined</option>
-        </select>
+        <button onclick="openModal('multiAccountFilterModal')" class="bg-white border border-gray-300 rounded-xl p-2.5 text-xs font-medium text-gray-800 shadow-sm flex justify-between items-center text-left">
+          <span id="multiAccountFilterLabel" class="truncate">All accounts combined</span>
+          <i class="fa-solid fa-chevron-down text-gray-500 text-[10px] ml-1"></i>
+        </button>
         <select id="forecastRangeSelect" onchange="updateForecastRange(this.value)" class="select-custom bg-white border border-gray-300 rounded-xl p-2.5 text-xs font-bold text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
           <option value="0.5">Forecast: 6 Months</option>
           <option value="1" selected>Forecast: 1 Year</option>
@@ -182,7 +189,7 @@
         <h2 class="text-base font-bold text-gray-900">Revolving Debts & Loans</h2>
         <button onclick="openDebtModal()" class="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-amber-600">+ Add Debt Account</button>
       </div>
-      <p class="text-xs text-gray-500">Track APRs, promo interest rates, fees, and forecasted payoff dates. Toggle accounts onto the calendar forecast.</p>
+      <p class="text-xs text-gray-500">Track APRs, promo interest rates, credit limits, utilization, and forecasted payoff dates.</p>
       <div id="debtsList" class="space-y-3"></div>
     </section>
 
@@ -245,6 +252,36 @@
 
   <!-- MODALS -->
 
+  <!-- Multi-Account Selection Modal -->
+  <div id="multiAccountFilterModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-xl max-h-[80vh] overflow-y-auto">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-base text-gray-900">Filter Accounts in View</h3>
+        <button onclick="closeModal('multiAccountFilterModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <label class="flex items-center gap-2 font-bold text-amber-700 p-2 bg-amber-50 rounded-lg cursor-pointer">
+          <input type="checkbox" id="chkFilterAll" onchange="toggleAllAccountFilters(this.checked)" class="w-4 h-4 text-amber-500 rounded">
+          <span>Select All Accounts Combined</span>
+        </label>
+        
+        <div class="border-t border-gray-200 pt-2">
+          <div class="text-[10px] font-bold text-gray-500 uppercase mb-1">Liquid Accounts</div>
+          <div id="multiFilterLiquidList" class="space-y-1.5 pl-1"></div>
+        </div>
+
+        <div class="border-t border-gray-200 pt-2">
+          <div class="text-[10px] font-bold text-gray-500 uppercase mb-1">Debt / Credit Cards</div>
+          <div id="multiFilterDebtList" class="space-y-1.5 pl-1"></div>
+        </div>
+
+        <button onclick="applyMultiAccountFilter()" class="w-full bg-amber-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-amber-600 mt-2">
+          Apply Filter
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Settings Modal -->
   <div id="settingsModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
     <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-xl">
@@ -262,7 +299,7 @@
         </div>
         <hr class="border-gray-200">
         <button onclick="resetAppToDemo()" class="w-full bg-amber-50 text-amber-700 border border-amber-200 py-2 rounded-xl font-semibold hover:bg-amber-100">
-          Reload Demo Data
+          Reload Anonymous Demo Data
         </button>
         <button onclick="clearAllDataWithPrompt()" class="w-full bg-red-50 text-red-600 border border-red-200 py-2 rounded-xl font-semibold hover:bg-red-100">
           Reset All Data (Clear Everything)
@@ -367,7 +404,6 @@
           <option value="expense">Expense (-)</option>
           <option value="income">Income (+)</option>
         </select>
-        <!-- NEW CATEGORY SELECT ADDED HERE -->
         <select id="recCategory" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
         
         <div class="space-y-2">
@@ -463,7 +499,18 @@
         <input id="debtId" type="hidden">
         <div>
           <label class="block text-[10px] font-bold text-gray-500 mb-0.5">ACCOUNT NAME</label>
-          <input id="debtName" type="text" placeholder="e.g. Chase Freedom" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
+          <input id="debtName" type="text" placeholder="e.g. Credit Card" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] font-bold text-gray-500 mb-0.5">CREDIT LIMIT ($)</label>
+            <input id="debtCreditLimit" type="number" step="0.01" placeholder="5000.00" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-gray-500 mb-0.5">OWED BALANCE ($)</label>
+            <input id="debtBalance" type="number" step="0.01" placeholder="1200.00" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
+          </div>
         </div>
         
         <div class="grid grid-cols-2 gap-2">
@@ -472,32 +519,38 @@
             <input id="debtStartDate" type="date" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
           </div>
           <div>
-            <label class="block text-[10px] font-bold text-gray-500 mb-0.5">OWED BALANCE ($)</label>
-            <input id="debtBalance" type="number" step="0.01" placeholder="8842.79" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <div>
             <label class="block text-[10px] font-bold text-gray-500 mb-0.5">STANDARD APR (%)</label>
             <input id="debtApr" type="number" step="0.01" placeholder="19.49" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
           </div>
-          <div>
-            <label class="block text-[10px] font-bold text-gray-500 mb-0.5">TARGET PAYMENT ($)</label>
-            <input id="debtMinPayment" type="number" step="0.01" placeholder="287.00" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
-          </div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-bold text-gray-500 mb-0.5">TARGET PAYMENT ($)</label>
+          <input id="debtMinPayment" type="number" step="0.01" placeholder="100.00" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
         </div>
 
         <div class="p-2.5 bg-amber-50/60 border border-amber-200 rounded-xl space-y-2">
-          <span class="text-[10px] font-bold text-amber-800 uppercase block">PROMO / 0% INTEREST PERIOD</span>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[10px] text-gray-600 mb-0.5">PROMO APR (%)</label>
-              <input id="debtPromoApr" type="number" step="0.01" value="0" placeholder="0" class="w-full bg-white border border-gray-300 rounded-lg p-2 text-gray-800">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold text-amber-800 uppercase">PROMO / 0% INTEREST PERIOD</span>
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input id="debtPromoEnabled" type="checkbox" onchange="togglePromoInputs()" class="w-3.5 h-3.5 text-amber-500 rounded">
+              <span class="text-[10px] font-bold text-amber-800">ENABLE</span>
+            </label>
+          </div>
+          <div id="promoInputsContainer" class="space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] text-gray-600 mb-0.5">PROMO APR (%)</label>
+                <input id="debtPromoApr" type="number" step="0.01" value="0" placeholder="0" class="w-full bg-white border border-gray-300 rounded-lg p-2 text-gray-800">
+              </div>
+              <div>
+                <label class="block text-[10px] text-gray-600 mb-0.5">DURATION (MOS)</label>
+                <input id="debtPromoMonths" type="number" min="0" placeholder="12" class="w-full bg-white border border-gray-300 rounded-lg p-2 text-gray-800">
+              </div>
             </div>
             <div>
-              <label class="block text-[10px] text-gray-600 mb-0.5">PROMO DURATION</label>
-              <input id="debtPromoMonths" type="number" min="0" placeholder="e.g. 12 (months)" class="w-full bg-white border border-gray-300 rounded-lg p-2 text-gray-800">
+              <label class="block text-[10px] text-gray-600 mb-0.5">EXPLICIT PROMO END DATE (OPTIONAL)</label>
+              <input id="debtPromoEndDate" type="date" class="w-full bg-white border border-gray-300 rounded-lg p-2 text-gray-800">
             </div>
           </div>
         </div>
@@ -576,11 +629,11 @@
   </div>
 
   <script>
-    // --- DEMO INITIALIZATION STATE ---
+    // --- ANONYMOUS DEMO INITIALIZATION STATE ---
     const DEMO_STATE = {
       accounts: [
-        { id: 'acc-1', name: 'Primary Checking', balance: 3450.00 },
-        { id: 'acc-2', name: 'Emergency Savings', balance: 12000.00 }
+        { id: 'acc-1', name: 'Primary Checking', balance: 1500.00 },
+        { id: 'acc-2', name: 'Emergency Savings', balance: 5000.00 }
       ],
       categories: [
         { id: 'cat-1', name: 'General', color: '#6B7280', icon: 'fa-tag' },
@@ -590,74 +643,48 @@
         { id: 'cat-5', name: 'Income', color: '#2563EB', icon: 'fa-wallet' }
       ],
       transactions: [
-        { id: 'tx-extracted-1', desc: 'Garage sale', amount: 500.00, category: 'Income', type: 'income', accountId: 'acc-1', date: '2026-08-01' },
-        { id: 'tx-extracted-2', desc: 'B.E.S.T', amount: 2500.00, category: 'Income', type: 'income', accountId: 'acc-1', date: '2026-08-01' }
+        { id: 'tx-1', desc: 'Sample Starting Balance', amount: 1500.00, category: 'Income', type: 'income', accountId: 'acc-1', date: '2026-08-01', isPaid: true }
       ],
       recurring: [
-        { id: 'rec-ex-1', desc: 'Citi Strata', amount: 45.00, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-01', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-2', desc: 'Amica', amount: 152.17, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-01', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-3', desc: 'Chase 0649 // reports 4th', amount: 293.37, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-01', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-4', desc: 'Citi 4494', amount: 190.67, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-01', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-5', desc: 'Chase 5688 // reports 4th', amount: 270.00, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-01', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-6', desc: 'Grocery/Household', amount: 275.00, type: 'expense', category: 'Groceries', mode: 'interval', count: 1, unit: 'week', startDate: '2026-08-02', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-7', desc: 'Duke Energy', amount: 302.00, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-03', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-8', desc: 'JTS-gas', amount: 91.00, type: 'expense', mode: 'interval', count: 2, unit: 'week', startDate: '2026-08-03', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-9', desc: 'Happen Bank', amount: 634.00, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-04', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-10', desc: 'Paypal', amount: 339.40, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-05', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-11', desc: 'Capital One CC', amount: 109.00, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-07', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-12', desc: 'Amex', amount: 1084.57, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-08', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-13', desc: 'Citi Card - JTS', amount: 158.13, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-08', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-14', desc: 'ATT', amount: 30.12, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-12', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-15', desc: 'CAT', amount: 1850.00, type: 'income', mode: 'interval', count: 2, unit: 'week', startDate: '2026-08-13', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-16', desc: 'Wells Fargo', amount: 170.00, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-13', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-17', desc: 'TMobile possible 197.49', amount: 0.01, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-13', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-18', desc: 'PennyMac', amount: 1600.00, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-14', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-19', desc: 'JPS gas', amount: 53.35, type: 'expense', mode: 'interval', count: 2, unit: 'week', startDate: '2026-08-17', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-20', desc: 'Raleigh Water/Trash', amount: 152.09, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-17', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-21', desc: 'Upgrade', amount: 40.26, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-19', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-22', desc: 'Savor Card', amount: 664.33, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-27', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-23', desc: 'Rooms2Go', amount: 104.00, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-28', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-24', desc: 'T-Mobile', amount: 179.85, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-28', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-ex-25', desc: 'Google Storage', amount: 2.99, type: 'expense', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-28', endType: 'never', accountId: 'acc-1', paused: false }
+        { id: 'rec-1', desc: 'Sample Paycheck', amount: 2000.00, type: 'income', category: 'Income', mode: 'interval', count: 2, unit: 'week', startDate: '2026-08-01', endType: 'never', accountId: 'acc-1', paused: false },
+        { id: 'rec-2', desc: 'Sample Utilities', amount: 120.00, type: 'expense', category: 'Utilities', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-05', endType: 'never', accountId: 'acc-1', paused: false }
       ],
       debts: [
         { 
           id: 'd-1', 
-          name: 'Chase 3019', 
-          balance: 8842.79, 
-          apr: 19.49, 
-          minPayment: 287.00, 
+          name: 'Sample Credit Card', 
+          balance: 1200.00, 
+          creditLimit: 5000.00,
+          apr: 19.99, 
+          minPayment: 50.00, 
           annualFee: 0, 
-          startDate: '2026-09-01', 
+          startDate: '2026-08-01', 
           closingDate: 25, 
-          dueDate: 1, 
+          dueDate: 15, 
+          promoEnabled: false,
           promoApr: 0, 
-          promoMonths: 12, 
+          promoMonths: 0, 
+          promoEndDate: '',
           includeInForecast: true 
         }
       ],
       budgets: [
-        { id: 'b-1', category: 'Groceries', limit: 600.00 }
+        { id: 'b-1', category: 'Groceries', limit: 400.00 }
       ],
       overrides: {},
-      exceptions: {}
+      exceptions: {},
+      paidStatus: {} // Key: "txId" or "ruleId_YYYY-MM-DD" -> boolean
     };
 
-    function getRelativeDateStr(daysOffset) {
-      const d = new Date();
-      d.setDate(d.getDate() + daysOffset);
-      return formatLocalDate(d);
-    }
-
     const STORAGE_KEY = 'ledger_v6_full_state';
-    let state = DEMO_STATE; // placeholder until loadState() resolves
+    let state = DEMO_STATE;
     let activeTab = 'forecast';
     let currentMonthDate = new Date();
     let selectedDateStr = formatLocalDate(new Date());
     let forecastYears = 1;
     let chartInstance = null;
+    let selectedAccountIds = ['all']; // Multi-select filters
 
-    // --- PERSISTENCE (local for now; Firebase sync comes in phase 2) ---
     function persist() {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -673,7 +700,7 @@
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) state = JSON.parse(raw);
       } catch (e) {
-        // No saved state yet — keep DEMO_STATE as the starting point.
+        // Fallback to demo
       }
     }
 
@@ -688,16 +715,22 @@
       }
     }
 
-    // --- DATA UPGRADE SAFETY INJECTION ---
-    // Injects the "Unassigned" category into existing saves so budgets and rules don't break
     function verifyDataIntegrity() {
+      if (!state.categories) state.categories = DEMO_STATE.categories;
+      if (!state.paidStatus) state.paidStatus = {};
       if (!state.categories.find(c => c.name.toLowerCase() === 'unassigned')) {
         state.categories.unshift({ id: 'cat-unassigned', name: 'Unassigned', color: '#9CA3AF', icon: 'fa-question' });
-        persist();
       }
+      if (state.debts) {
+        state.debts.forEach(d => {
+          if (d.creditLimit === undefined) d.creditLimit = 0;
+          if (d.promoEnabled === undefined) d.promoEnabled = false;
+          if (d.promoEndDate === undefined) d.promoEndDate = '';
+        });
+      }
+      persist();
     }
 
-    // --- PERSISTENCE ---
     function saveState() {
       renderApp();
       persist();
@@ -716,7 +749,7 @@
       reader.onload = function(event) {
         try {
           state = JSON.parse(event.target.result);
-          verifyDataIntegrity(); // Ensure imported data gets the category check
+          verifyDataIntegrity();
           saveState();
           closeModal('settingsModal');
           alert('Data successfully restored!');
@@ -738,7 +771,7 @@
 
     function clearAllDataWithPrompt() {
       if (confirm('ARE YOU SURE? This will permanently wipe all accounts, transactions, and settings.')) {
-        state = { accounts: [], categories: DEMO_STATE.categories, transactions: [], recurring: [], debts: [], budgets: [], overrides: {}, exceptions: {} };
+        state = { accounts: [], categories: DEMO_STATE.categories, transactions: [], recurring: [], debts: [], budgets: [], overrides: {}, exceptions: {}, paidStatus: {} };
         verifyDataIntegrity();
         saveState();
         closeModal('settingsModal');
@@ -746,7 +779,10 @@
     }
 
     // --- UI ROUTING ---
-    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function openModal(id) { 
+      if (id === 'multiAccountFilterModal') renderMultiAccountFilterUI();
+      document.getElementById(id).classList.remove('hidden'); 
+    }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
     function switchTab(tab) {
@@ -781,7 +817,6 @@
 
     function updateForecastRange(val) {
       forecastYears = parseFloat(val);
-      document.getElementById('netWorthLabel').textContent = `FORECASTED NET WORTH (${val < 1 ? val*12 + ' MO' : val + ' YR'})`;
       renderApp();
     }
 
@@ -810,17 +845,61 @@
       return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
 
+    // --- MULTI-SELECT ACCOUNT FILTERING LOGIC ---
+    function renderMultiAccountFilterUI() {
+      const isAll = selectedAccountIds.includes('all');
+      document.getElementById('chkFilterAll').checked = isAll;
+
+      const liquidContainer = document.getElementById('multiFilterLiquidList');
+      liquidContainer.innerHTML = state.accounts.map(a => `
+        <label class="flex items-center gap-2 cursor-pointer text-gray-800">
+          <input type="checkbox" class="chk-acc-filter w-4 h-4 text-amber-500 rounded" value="${a.id}" ${isAll || selectedAccountIds.includes(a.id) ? 'checked' : ''}>
+          <span>${a.name}</span>
+        </label>
+      `).join('');
+
+      const debtContainer = document.getElementById('multiFilterDebtList');
+      debtContainer.innerHTML = state.debts.map(d => `
+        <label class="flex items-center gap-2 cursor-pointer text-gray-800">
+          <input type="checkbox" class="chk-acc-filter w-4 h-4 text-amber-500 rounded" value="debt-${d.id}" ${isAll || selectedAccountIds.includes(`debt-${d.id}`) ? 'checked' : ''}>
+          <span>${d.name} (Debt)</span>
+        </label>
+      `).join('');
+    }
+
+    function toggleAllAccountFilters(checked) {
+      document.querySelectorAll('.chk-acc-filter').forEach(chk => chk.checked = checked);
+    }
+
+    function applyMultiAccountFilter() {
+      const checkboxes = document.querySelectorAll('.chk-acc-filter');
+      const checkedVals = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+      
+      const totalCount = state.accounts.length + state.debts.length;
+      if (document.getElementById('chkFilterAll').checked || checkedVals.length === totalCount || checkedVals.length === 0) {
+        selectedAccountIds = ['all'];
+      } else {
+        selectedAccountIds = checkedVals;
+      }
+
+      closeModal('multiAccountFilterModal');
+      renderApp();
+    }
+
+    function isAccountActive(accId) {
+      if (selectedAccountIds.includes('all')) return true;
+      return selectedAccountIds.includes(accId);
+    }
+
     // --- RECURRING MATCHING ENGINE ---
-    function getRecurringForDate(targetDateStr, accountFilter) {
+    function getRecurringForDate(targetDateStr) {
       const targetDate = parseLocalDate(targetDateStr);
       const matches = [];
 
-      const isDebtFilter = accountFilter.startsWith('debt-');
-
-      // 1. Process standard liquid account recurring rules
+      // 1. Liquid recurring rules
       state.recurring.forEach(rule => {
         if (rule.paused) return;
-        if (accountFilter !== 'all' && !isDebtFilter && rule.accountId !== accountFilter) return;
+        if (!isAccountActive(rule.accountId)) return;
 
         const start = parseLocalDate(rule.startDate);
         if (targetDate < start) return;
@@ -861,35 +940,38 @@
           }
         }
 
-        if (hit) {
-          if (rule.endType === 'until_date' && rule.endDate && targetDate > parseLocalDate(rule.endDate)) hit = false;
+        if (hit && rule.endType === 'until_date' && rule.endDate && targetDate > parseLocalDate(rule.endDate)) {
+          hit = false;
         }
 
-        if (hit && !isDebtFilter) {
-          matches.push({ ...rule, isRecurring: true, date: targetDateStr });
+        if (hit) {
+          matches.push({ ...rule, isRecurring: true, date: targetDateStr, instanceId: `${rule.id}_${targetDateStr}` });
         }
       });
 
-      // 2. Scheduled debt payments and interest charges (if targetDate >= debt's start date)
+      // 2. Scheduled debt payments and interest
       state.debts.forEach(d => {
+        const debtKey = `debt-${d.id}`;
+        if (!isAccountActive(debtKey) && !selectedAccountIds.includes('all')) return;
+
         const debtStart = d.startDate ? parseLocalDate(d.startDate) : new Date(0);
         if (targetDate >= debtStart) {
-          const debtFilterKey = `debt-${d.id}`;
-          
+          const isOnlyDebtSelected = selectedAccountIds.every(id => id.startsWith('debt-')) && !selectedAccountIds.includes('all');
+
           // Payments on due date
           if (d.dueDate && parseInt(d.dueDate) === targetDate.getDate()) {
-            if (accountFilter === 'all' && d.includeInForecast) {
-              matches.push({ id: `debt-pay-${d.id}`, desc: `${d.name} Payment`, amount: d.minPayment, category: 'Housing', type: 'expense', isRecurring: true, date: targetDateStr });
-            } else if (accountFilter === debtFilterKey) {
-              matches.push({ id: `debt-pay-${d.id}`, desc: `Payment Received (${d.name})`, amount: d.minPayment, category: 'Housing', type: 'income', isRecurring: true, date: targetDateStr });
+            if (!isOnlyDebtSelected && d.includeInForecast) {
+              matches.push({ id: `debt-pay-${d.id}`, desc: `${d.name} Payment`, amount: d.minPayment, category: 'Housing', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
+            } else if (isOnlyDebtSelected) {
+              matches.push({ id: `debt-pay-${d.id}`, desc: `Payment Received (${d.name})`, amount: d.minPayment, category: 'Housing', type: 'income', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
             }
           }
 
-          // Interest Charge on closing date (when viewing specific debt account calendar)
-          if (isDebtFilter && accountFilter === debtFilterKey && d.closingDate && parseInt(d.closingDate) === targetDate.getDate()) {
+          // Interest charge on closing date when viewing debt accounts
+          if (isOnlyDebtSelected && d.closingDate && parseInt(d.closingDate) === targetDate.getDate()) {
             const calculatedInterest = calculateDebtInterestForDate(d, targetDate);
             if (calculatedInterest > 0) {
-              matches.push({ id: `debt-int-${d.id}`, desc: `Calculated Interest Charge (${d.name})`, amount: calculatedInterest, category: 'Utilities', type: 'expense', isRecurring: true, date: targetDateStr });
+              matches.push({ id: `debt-int-${d.id}`, desc: `Interest Charge (${d.name})`, amount: calculatedInterest, category: 'Utilities', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-int-${d.id}_${targetDateStr}` });
             }
           }
         }
@@ -898,7 +980,6 @@
       return matches;
     }
 
-    // Helper to calculate exact interest on closing date for debt calendar displays
     function calculateDebtInterestForDate(debt, targetDate) {
       const debtStartDate = debt.startDate ? parseLocalDate(debt.startDate) : parseLocalDate('2026-01-01');
       if (targetDate <= debtStartDate) return 0;
@@ -907,7 +988,9 @@
       let cur = new Date(debtStartDate);
 
       let promoEndDate = null;
-      if (debt.promoMonths && parseInt(debt.promoMonths) > 0) {
+      if (debt.promoEnabled && debt.promoEndDate) {
+        promoEndDate = parseLocalDate(debt.promoEndDate);
+      } else if (debt.promoMonths && parseInt(debt.promoMonths) > 0) {
         promoEndDate = new Date(debtStartDate);
         promoEndDate.setMonth(promoEndDate.getMonth() + parseInt(debt.promoMonths));
       }
@@ -917,7 +1000,6 @@
       while (cur <= targetDate) {
         const k = formatLocalDate(cur);
 
-        // Apply interest on closing date
         if (cur > debtStartDate && debt.closingDate && cur.getDate() === parseInt(debt.closingDate) && curBal > 0) {
           let activeApr = debt.apr;
           if (promoEndDate && cur <= promoEndDate) {
@@ -925,24 +1007,19 @@
           }
           const monthlyRate = (activeApr / 100) / 12;
           lastInterestAmount = curBal * monthlyRate;
-          if (k === formatLocalDate(targetDate)) {
-            return lastInterestAmount;
-          }
+          if (k === formatLocalDate(targetDate)) return lastInterestAmount;
           curBal += lastInterestAmount;
         }
 
-        // Apply Annual Fee
         if (debt.annualFee && debt.annualFee > 0 && cur > debtStartDate && cur.getMonth() === debtStartDate.getMonth() && cur.getDate() === debtStartDate.getDate() && curBal > 0) {
           curBal += debt.annualFee;
         }
 
-        // Subtract scheduled payment on due date
         if (debt.dueDate && cur.getDate() === parseInt(debt.dueDate) && curBal > 0) {
           const pmt = Math.min(curBal, debt.minPayment);
           curBal -= pmt;
         }
 
-        // Manual transactions tied to this debt ID
         const debtTxs = state.transactions.filter(t => t.accountId === `debt-${debt.id}` && t.date === k);
         debtTxs.forEach(t => {
           if (t.type === 'expense') curBal += t.amount;
@@ -955,78 +1032,79 @@
       return lastInterestAmount;
     }
 
-    // --- CUMULATIVE BALANCE ENGINE (LIQUID & DEBT) ---
-    function calculateBalanceUpToDate(targetDateStr, accountFilter) {
+    // --- CUMULATIVE BALANCE ENGINE ---
+    function calculateBalanceUpToDate(targetDateStr) {
       if (state.overrides[targetDateStr]) {
         return state.overrides[targetDateStr];
       }
 
       const targetDate = parseLocalDate(targetDateStr);
+      const isOnlyDebtSelected = selectedAccountIds.every(id => id.startsWith('debt-')) && !selectedAccountIds.includes('all');
 
-      // --- IF FILTERING A SPECIFIC DEBT ACCOUNT ---
-      if (accountFilter.startsWith('debt-')) {
-        const debtId = accountFilter.replace('debt-', '');
-        const debt = state.debts.find(d => d.id === debtId);
-        if (!debt) return 0;
+      // --- IF FILTERING DEBT ACCOUNTS EXCLUSIVELY ---
+      if (isOnlyDebtSelected) {
+        let totalDebt = 0;
+        state.debts.forEach(d => {
+          if (!isAccountActive(`debt-${d.id}`)) return;
 
-        const debtStartDate = debt.startDate ? parseLocalDate(debt.startDate) : parseLocalDate('2026-01-01');
-        if (targetDate < debtStartDate) return 0;
+          const debtStartDate = d.startDate ? parseLocalDate(d.startDate) : parseLocalDate('2026-01-01');
+          if (targetDate < debtStartDate) return;
 
-        let curBal = debt.balance;
-        let cur = new Date(debtStartDate);
+          let curBal = d.balance;
+          let cur = new Date(debtStartDate);
 
-        // Calculate end of promo period
-        let promoEndDate = null;
-        if (debt.promoMonths && parseInt(debt.promoMonths) > 0) {
-          promoEndDate = new Date(debtStartDate);
-          promoEndDate.setMonth(promoEndDate.getMonth() + parseInt(debt.promoMonths));
-        }
+          let promoEndDate = null;
+          if (d.promoEnabled && d.promoEndDate) {
+            promoEndDate = parseLocalDate(d.promoEndDate);
+          } else if (d.promoMonths && parseInt(d.promoMonths) > 0) {
+            promoEndDate = new Date(debtStartDate);
+            promoEndDate.setMonth(promoEndDate.getMonth() + parseInt(d.promoMonths));
+          }
 
-        while (cur <= targetDate) {
-          const k = formatLocalDate(cur);
+          while (cur <= targetDate) {
+            const k = formatLocalDate(cur);
 
-          // 1) Apply monthly interest on Closing Date of each month
-          const closingDay = debt.closingDate ? parseInt(debt.closingDate) : 1;
-          if (cur > debtStartDate && cur.getDate() === closingDay && curBal > 0) {
-            let activeApr = debt.apr;
-            if (promoEndDate && cur <= promoEndDate) {
-              activeApr = debt.promoApr !== undefined ? parseFloat(debt.promoApr) : 0;
+            const closingDay = d.closingDate ? parseInt(d.closingDate) : 1;
+            if (cur > debtStartDate && cur.getDate() === closingDay && curBal > 0) {
+              let activeApr = d.apr;
+              if (promoEndDate && cur <= promoEndDate) {
+                activeApr = d.promoApr !== undefined ? parseFloat(d.promoApr) : 0;
+              }
+              const monthlyRate = (activeApr / 100) / 12;
+              curBal += curBal * monthlyRate;
             }
-            const monthlyRate = (activeApr / 100) / 12;
-            curBal += curBal * monthlyRate;
+
+            if (d.annualFee && d.annualFee > 0 && cur > debtStartDate && cur.getMonth() === debtStartDate.getMonth() && cur.getDate() === debtStartDate.getDate() && curBal > 0) {
+              curBal += d.annualFee;
+            }
+
+            if (d.dueDate && cur.getDate() === parseInt(d.dueDate) && curBal > 0) {
+              const pmt = Math.min(curBal, d.minPayment);
+              curBal -= pmt;
+            }
+
+            const debtTxs = state.transactions.filter(t => t.accountId === `debt-${d.id}` && t.date === k);
+            debtTxs.forEach(t => {
+              if (t.type === 'expense') curBal += t.amount;
+              else if (t.type === 'income') curBal -= t.amount;
+            });
+
+            cur.setDate(cur.getDate() + 1);
           }
 
-          // 2) Apply Annual Fee
-          if (debt.annualFee && debt.annualFee > 0 && cur > debtStartDate && cur.getMonth() === debtStartDate.getMonth() && cur.getDate() === debtStartDate.getDate() && curBal > 0) {
-            curBal += debt.annualFee;
-          }
+          totalDebt += Math.max(0, curBal);
+        });
 
-          // 3) Subtract scheduled payment on due date
-          if (debt.dueDate && cur.getDate() === parseInt(debt.dueDate) && curBal > 0) {
-            const pmt = Math.min(curBal, debt.minPayment);
-            curBal -= pmt;
-          }
-
-          // 4) Manual transactions tied to this debt ID
-          const debtTxs = state.transactions.filter(t => t.accountId === `debt-${debt.id}` && t.date === k);
-          debtTxs.forEach(t => {
-            if (t.type === 'expense') curBal += t.amount;
-            else if (t.type === 'income') curBal -= t.amount;
-          });
-
-          cur.setDate(cur.getDate() + 1);
-        }
-
-        return -Math.max(0, curBal);
+        return -totalDebt; // Return as negative representation for total debt balance
       }
 
       // --- LIQUID ACCOUNTS SIMULATION ---
       const startingBase = state.accounts
-        .filter(a => accountFilter === 'all' || a.id === accountFilter)
+        .filter(a => isAccountActive(a.id))
         .reduce((s, a) => s + a.balance, 0);
 
       const txDelta = state.transactions
-        .filter(t => (accountFilter === 'all' || t.accountId === accountFilter) && t.date <= targetDateStr)
+        .filter(t => isAccountActive(t.accountId) && t.date <= targetDateStr)
         .reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
 
       let recurringDelta = 0;
@@ -1045,7 +1123,7 @@
       
       while (cur <= targetDate) {
         const k = formatLocalDate(cur);
-        const dayRecs = getRecurringForDate(k, accountFilter);
+        const dayRecs = getRecurringForDate(k);
         dayRecs.forEach(r => {
           recurringDelta += (r.type === 'income' ? r.amount : -r.amount);
         });
@@ -1055,8 +1133,7 @@
       return startingBase + txDelta + recurringDelta;
     }
 
-    // --- QUARTERLY NEGATIVE BALANCE SCANNER ---
-    function checkQuarterlyNegativeBalance(filter) {
+    function checkQuarterlyNegativeBalance() {
       const today = new Date();
       const ninetyDaysLater = new Date();
       ninetyDaysLater.setDate(today.getDate() + 90);
@@ -1067,7 +1144,7 @@
       let cur = new Date(today);
       while (cur <= ninetyDaysLater) {
         const k = formatLocalDate(cur);
-        const bal = calculateBalanceUpToDate(k, filter);
+        const bal = calculateBalanceUpToDate(k);
         if (bal < 0) {
           if (!firstNegativeDate) firstNegativeDate = k;
           if (bal < minNegativeBal) minNegativeBal = bal;
@@ -1077,8 +1154,9 @@
 
       const warningBanner = document.getElementById('negativeWarningBanner');
       const warningText = document.getElementById('negativeWarningText');
+      const isDebtView = selectedAccountIds.every(id => id.startsWith('debt-')) && !selectedAccountIds.includes('all');
 
-      if (firstNegativeDate && !filter.startsWith('debt-')) {
+      if (firstNegativeDate && !isDebtView) {
         const negD = parseLocalDate(firstNegativeDate);
         const monthName = negD.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         warningText.textContent = `WARNING: Projected negative balance (${fmtMoney(minNegativeBal)}) starting on ${monthName} within the next 90 days!`;
@@ -1088,30 +1166,74 @@
       }
     }
 
+    function checkDebtFreeMilestone() {
+      const debtBanner = document.getElementById('debtFreeBanner');
+      const debtText = document.getElementById('debtFreeText');
+      const isDebtView = selectedAccountIds.every(id => id.startsWith('debt-')) && !selectedAccountIds.includes('all');
+
+      if (isDebtView) {
+        const today = new Date();
+        let cur = new Date(today);
+        const maxScan = new Date(today);
+        maxScan.setFullYear(maxScan.getFullYear() + 10);
+
+        let debtFreeDate = null;
+        while (cur <= maxScan) {
+          const k = formatLocalDate(cur);
+          const bal = calculateBalanceUpToDate(k); // Negative number representing debt
+          if (bal >= 0) {
+            debtFreeDate = k;
+            break;
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+
+        if (debtFreeDate) {
+          const d = parseLocalDate(debtFreeDate);
+          debtText.textContent = `🎉 Positive Forecast Milestone: Debt Free Reached on ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}!`;
+          debtBanner.classList.remove('hidden');
+          return;
+        }
+      }
+      debtBanner.classList.add('hidden');
+    }
+
     // --- RENDER APP ---
     function renderApp() {
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + Math.round(forecastYears * 12));
-      const netWorth = calculateBalanceUpToDate(formatLocalDate(endDate), 'all');
-      document.getElementById('netWorthDisplay').textContent = fmtMoney(netWorth);
+      const netWorth = calculateBalanceUpToDate(formatLocalDate(endDate));
+      
+      const isDebtView = selectedAccountIds.every(id => id.startsWith('debt-')) && !selectedAccountIds.includes('all');
+      const labelEl = document.getElementById('netWorthLabel');
+      const displayEl = document.getElementById('netWorthDisplay');
 
-      const filterSelect = document.getElementById('accountFilterSelect');
+      labelEl.textContent = isDebtView 
+        ? `TOTAL DEBT BALANCE (${forecastYears < 1 ? forecastYears*12 + ' MO' : forecastYears + ' YR'})` 
+        : `FORECASTED NET WORTH (${forecastYears < 1 ? forecastYears*12 + ' MO' : forecastYears + ' YR'})`;
+
+      if (isDebtView) {
+        displayEl.textContent = fmtMoney(Math.abs(netWorth));
+        displayEl.className = 'text-2xl font-mono font-bold text-red-600';
+      } else {
+        displayEl.textContent = fmtMoney(netWorth);
+        displayEl.className = 'text-2xl font-mono font-bold text-gray-900';
+      }
+
+      // Update Filter Button Label
+      const filterLabel = document.getElementById('multiAccountFilterLabel');
+      if (selectedAccountIds.includes('all')) {
+        filterLabel.textContent = 'All accounts combined';
+      } else if (selectedAccountIds.length === 1) {
+        filterLabel.textContent = getAccountName(selectedAccountIds[0]);
+      } else {
+        filterLabel.textContent = `${selectedAccountIds.length} Accounts Selected`;
+      }
+
+      // Populate Select Options inside Modals
       const txSelect = document.getElementById('txAccount');
       const recSelect = document.getElementById('recAccount');
-      const curFilter = filterSelect.value || 'all';
 
-      // Populate Filter Dropdown
-      let filterHTML = '<option value="all">All accounts combined</option>';
-      if (state.accounts.length > 0) {
-        filterHTML += `<optgroup label="Liquid Accounts">` + state.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('') + `</optgroup>`;
-      }
-      if (state.debts.length > 0) {
-        filterHTML += `<optgroup label="Debt / Credit Cards">` + state.debts.map(d => `<option value="debt-${d.id}">${d.name} (Debt)</option>`).join('') + `</optgroup>`;
-      }
-      filterSelect.innerHTML = filterHTML;
-      filterSelect.value = curFilter;
-
-      // Populate Account Options
       let accOptions = state.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
       if (state.debts.length > 0) {
         accOptions += `<optgroup label="Debts / Credit Cards">` + state.debts.map(d => `<option value="debt-${d.id}">${d.name}</option>`).join('') + `</optgroup>`;
@@ -1119,13 +1241,13 @@
       txSelect.innerHTML = accOptions;
       recSelect.innerHTML = accOptions;
 
-      // Populate Category Options Globally
       const catOptions = state.categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
       document.getElementById('txCategory').innerHTML = catOptions;
       document.getElementById('budCategory').innerHTML = catOptions;
       document.getElementById('recCategory').innerHTML = catOptions;
 
-      checkQuarterlyNegativeBalance(curFilter);
+      checkQuarterlyNegativeBalance();
+      checkDebtFreeMilestone();
 
       renderAccountsList();
       renderCalendar();
@@ -1190,7 +1312,6 @@
       saveState();
     }
 
-    // Render Calendar
     function renderCalendar() {
       const year = currentMonthDate.getFullYear();
       const month = currentMonthDate.getMonth();
@@ -1202,7 +1323,6 @@
       const grid = document.getElementById('calendarGrid');
       grid.innerHTML = '';
 
-      const filter = document.getElementById('accountFilterSelect').value;
       const todayStr = formatLocalDate(new Date());
 
       let minBal = Infinity, maxBal = -Infinity;
@@ -1211,7 +1331,7 @@
 
       for (let day = 1; day <= lastDay.getDate(); day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const bal = calculateBalanceUpToDate(dateStr, filter);
+        const bal = calculateBalanceUpToDate(dateStr);
         dayBalances[day] = bal;
         if (bal < minBal) minBal = bal;
         if (bal > maxBal) maxBal = bal;
@@ -1228,8 +1348,8 @@
         const dayOfWeek = dayDate.getDay();
         const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
 
-        const dayTxs = state.transactions.filter(t => t.date === dateStr && (filter === 'all' || t.accountId === filter));
-        const recTxs = getRecurringForDate(dateStr, filter);
+        const dayTxs = state.transactions.filter(t => t.date === dateStr && isAccountActive(t.accountId));
+        const recTxs = getRecurringForDate(dateStr);
         const dayBalance = dayBalances[day];
 
         const hasEvents = dayTxs.length > 0 || recTxs.length > 0;
@@ -1267,19 +1387,22 @@
       renderCalendar();
     }
 
+    function togglePaid(identifier) {
+      state.paidStatus[identifier] = !state.paidStatus[identifier];
+      saveState();
+    }
+
     function renderSelectedDay() {
       const d = parseLocalDate(selectedDateStr);
       document.getElementById('selectedDateHeader').textContent = `SELECTED DAY · ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
       
-      const filter = document.getElementById('accountFilterSelect').value;
-      const dayBalance = calculateBalanceUpToDate(selectedDateStr, filter);
+      const dayBalance = calculateBalanceUpToDate(selectedDateStr);
       document.getElementById('selectedDayBalance').textContent = fmtMoney(dayBalance);
 
-      const oneTimes = state.transactions.filter(t => t.date === selectedDateStr && (filter === 'all' || t.accountId === filter));
-      const recurrings = getRecurringForDate(selectedDateStr, filter);
+      const oneTimes = state.transactions.filter(t => t.date === selectedDateStr && isAccountActive(t.accountId));
+      const recurrings = getRecurringForDate(selectedDateStr);
       const allEvents = [...oneTimes, ...recurrings];
 
-      // Calculate Daily Net Change (Incomes - Expenses for the selected day)
       const dayIncome = allEvents.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
       const dayExpense = allEvents.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
       const netChange = dayIncome - dayExpense;
@@ -1298,21 +1421,30 @@
       const list = document.getElementById('selectedDayEventsList');
       list.innerHTML = allEvents.length === 0 
         ? `<div class="text-xs text-gray-500 italic py-1">No activity logged for this day.</div>`
-        : allEvents.map(t => `
-            <div class="flex justify-between items-center p-2 rounded-lg bg-gray-50 border border-gray-200 text-xs">
-              <div>
-                <span class="${t.type === 'income' ? 'text-emerald-700' : 'text-red-600'} font-mono font-bold">${t.type === 'income' ? '+' : '-'}${fmtMoney(t.amount)} · ${t.desc}</span>
-                ${t.isRecurring ? `<span class="ml-1 text-[9px] text-amber-700 font-mono font-bold uppercase">(Recurring)</span>` : ''}
+        : allEvents.map(t => {
+            const itemKey = t.instanceId || t.id;
+            const isPaid = !!state.paidStatus[itemKey];
+
+            return `
+              <div class="flex justify-between items-center p-2 rounded-lg bg-gray-50 border border-gray-200 text-xs ${isPaid ? 'opacity-60 bg-emerald-50/40' : ''}">
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" ${isPaid ? 'checked' : ''} onchange="togglePaid('${itemKey}')" title="Mark as Paid/Cleared" class="w-3.5 h-3.5 text-emerald-600 rounded cursor-pointer">
+                  <div>
+                    <span class="${t.type === 'income' ? 'text-emerald-700' : 'text-red-600'} font-mono font-bold ${isPaid ? 'line-through' : ''}">${t.type === 'income' ? '+' : '-'}${fmtMoney(t.amount)} · ${t.desc}</span>
+                    ${t.isRecurring ? `<span class="ml-1 text-[9px] text-amber-700 font-mono font-bold uppercase">(Recurring)</span>` : ''}
+                    ${isPaid ? `<span class="ml-1 text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold uppercase">PAID</span>` : ''}
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  ${t.isRecurring 
+                    ? `<button onclick="openOccurrenceEdit('${t.id}', '${selectedDateStr}')" class="text-amber-600 hover:text-amber-700 text-xs px-1"><i class="fa-solid fa-pen"></i></button>`
+                    : `<button onclick="openTransactionModal('${t.id}')" class="text-gray-400 hover:text-amber-600 text-xs px-1"><i class="fa-solid fa-pen"></i></button>
+                       <button onclick="deleteTransaction('${t.id}')" class="text-gray-400 hover:text-red-600 text-xs px-1"><i class="fa-solid fa-trash"></i></button>`
+                  }
+                </div>
               </div>
-              <div class="flex items-center gap-2">
-                ${t.isRecurring 
-                  ? `<button onclick="openOccurrenceEdit('${t.id}', '${selectedDateStr}')" class="text-amber-600 hover:text-amber-700 text-xs px-1"><i class="fa-solid fa-pen"></i></button>`
-                  : `<button onclick="openTransactionModal('${t.id}')" class="text-gray-400 hover:text-amber-600 text-xs px-1"><i class="fa-solid fa-pen"></i></button>
-                     <button onclick="deleteTransaction('${t.id}')" class="text-gray-400 hover:text-red-600 text-xs px-1"><i class="fa-solid fa-trash"></i></button>`
-                }
-              </div>
-            </div>
-          `).join('');
+            `;
+          }).join('');
     }
 
     // --- LOG TAB ---
@@ -1343,7 +1475,6 @@
           `).join('');
     }
 
-    // Helper to resolve Account Name for badges
     function getAccountName(accountId) {
       if (!accountId || accountId === 'all') return 'All Accounts';
       if (accountId.startsWith('debt-')) {
@@ -1366,7 +1497,6 @@
         getAccountName(r.accountId).toLowerCase().includes(query)
       );
 
-      // Sorting rules
       filtered.sort((a, b) => {
         if (sortBy === 'desc') return a.desc.localeCompare(b.desc);
         if (sortBy === 'amount') return b.amount - a.amount;
@@ -1391,6 +1521,7 @@
                   </div>
                   <div class="text-[10px] text-gray-500 font-mono mt-0.5">
                     ${r.mode === 'weekday' ? `Nth Weekday (${r.nth} day ${r.dayOfWeek})` : `Every ${r.count} ${r.unit}(s)`} · Starts ${r.startDate}
+                    ${r.endDate ? ` · Ends ${r.endDate}` : ''}
                   </div>
                 </div>
                 <div class="flex items-center gap-2.5">
@@ -1415,17 +1546,27 @@
             const promoApr = d.promoApr !== undefined ? parseFloat(d.promoApr) : 0;
             const standardApr = d.apr;
 
+            // Utilization Calculation
+            const limit = parseFloat(d.creditLimit || 0);
+            const utilPct = limit > 0 ? ((d.balance / limit) * 100).toFixed(1) : null;
+
             let balance = d.balance;
             let months = 0;
             let curSimDate = parseLocalDate(startDateStr);
+
+            let promoEndDate = null;
+            if (d.promoEnabled && d.promoEndDate) {
+              promoEndDate = parseLocalDate(d.promoEndDate);
+            }
 
             while (balance > 0 && months < 360) {
               months++;
               curSimDate.setMonth(curSimDate.getMonth() + 1);
 
               let activeApr = standardApr;
-              if (promoMonths > 0 && months <= promoMonths) {
-                activeApr = promoApr;
+              if (d.promoEnabled) {
+                if (promoEndDate && curSimDate <= promoEndDate) activeApr = promoApr;
+                else if (promoMonths > 0 && months <= promoMonths) activeApr = promoApr;
               }
 
               const monthlyInterest = (activeApr / 100) / 12;
@@ -1442,10 +1583,14 @@
               <div class="p-4 rounded-xl bg-white border border-gray-300 space-y-3 text-xs shadow-sm">
                 <div class="flex justify-between items-start">
                   <div>
-                    <div class="font-bold text-gray-900 text-sm">${d.name}</div>
+                    <div class="font-bold text-gray-900 text-sm flex items-center gap-2">
+                      ${d.name}
+                      ${utilPct !== null ? `<span class="text-[9px] px-2 py-0.5 rounded-full font-bold ${utilPct > 30 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">${utilPct}% Util</span>` : ''}
+                    </div>
                     <div class="text-[10px] text-gray-500 font-mono mt-0.5">
                       Starts: ${startDateStr} · APR: ${d.apr}%
-                      ${promoMonths > 0 ? `<br><span class="text-amber-600 font-semibold">Promo: ${promoApr}% for ${promoMonths} mos</span>` : ''}
+                      ${limit > 0 ? `<br>Credit Limit: ${fmtMoney(limit)}` : ''}
+                      ${d.promoEnabled ? `<br><span class="text-amber-600 font-semibold">Promo: ${promoApr}% ${d.promoEndDate ? `until ${d.promoEndDate}` : `for ${promoMonths} mos`}</span>` : ''}
                       ${d.closingDate ? `<br>Closing Day: ${d.closingDate}` : ''}
                     </div>
                   </div>
@@ -1506,7 +1651,6 @@
         return;
       }
 
-      // Determine Time Filter
       const filterMode = document.getElementById('budgetFilterMode')?.value || 'month';
       let startDateStr = null;
       let endDateStr = null;
@@ -1525,9 +1669,8 @@
       }
 
       list.innerHTML = state.budgets.map(b => {
-        // 1) Filter manual transactions matching category and date range
         const matchingTxs = state.transactions.filter(t => {
-          const tCat = t.category || 'Unassigned'; // Fallback mapping applied here
+          const tCat = t.category || 'Unassigned';
           if (tCat !== b.category || t.type !== 'expense') return false;
           if (startDateStr && t.date < startDateStr) return false;
           if (endDateStr && t.date > endDateStr) return false;
@@ -1535,16 +1678,15 @@
         });
         const manualSpent = matchingTxs.reduce((s, t) => s + t.amount, 0);
 
-        // 2) Filter recurring rules matching category and occurring within date range
         let recurringSpent = 0;
         if (startDateStr && endDateStr) {
           let cur = parseLocalDate(startDateStr);
           const endD = parseLocalDate(endDateStr);
           while (cur <= endD) {
             const k = formatLocalDate(cur);
-            const dayRecs = getRecurringForDate(k, 'all');
+            const dayRecs = getRecurringForDate(k);
             dayRecs.forEach(r => {
-              const rCat = r.category || 'Unassigned'; // Fallback mapping applied here
+              const rCat = r.category || 'Unassigned';
               if (r.type === 'expense' && (rCat === b.category || (!r.category && b.category === 'General'))) {
                 recurringSpent += r.amount;
               }
@@ -1630,7 +1772,8 @@
         category: document.getElementById('txCategory').value,
         type: document.getElementById('txType').value,
         accountId: document.getElementById('txAccount').value,
-        date: document.getElementById('txDate').value
+        date: document.getElementById('txDate').value,
+        isPaid: true
       };
 
       const isRecurring = document.getElementById('txIsRecurring').checked;
@@ -1760,6 +1903,7 @@
       openModal('occurrenceEditModal');
     }
 
+    // --- RECURRING LOGIC FIXES (SPLIT ON EDIT / $0 CANCEL) ---
     function saveOccurrenceEdit() {
       const ruleId = document.getElementById('occRuleId').value;
       const originalDate = document.getElementById('occOriginalDate').value;
@@ -1783,7 +1927,9 @@
           });
         }
       } else {
+        // Scope = 'future'
         if (rule) {
+          // Cap original rule end date to the day before newDate
           const newStartD = parseLocalDate(newDate);
           const endD = new Date(newStartD);
           endD.setDate(endD.getDate() - 1);
@@ -1791,20 +1937,28 @@
           rule.endType = 'until_date';
           rule.endDate = formatLocalDate(endD);
 
-          const newRule = {
-            ...rule,
-            id: 'rec-' + Date.now(),
-            startDate: newDate,
-            amount: newAmount,
-            endType: 'never',
-            endDate: null
-          };
-          state.recurring.push(newRule);
+          // If newAmount is 0, do not create a new rule (effectively cancels the series)
+          if (newAmount > 0) {
+            const newRule = {
+              ...rule,
+              id: 'rec-' + Date.now(),
+              startDate: newDate,
+              amount: newAmount,
+              endType: 'never',
+              endDate: null
+            };
+            state.recurring.push(newRule);
+          }
         }
       }
 
       closeModal('occurrenceEditModal');
       saveState();
+    }
+
+    function togglePromoInputs() {
+      const isEnabled = document.getElementById('debtPromoEnabled').checked;
+      document.getElementById('promoInputsContainer').style.display = isEnabled ? 'block' : 'none';
     }
 
     function openDebtModal(id = null) {
@@ -1813,12 +1967,15 @@
         if (!d) return;
         document.getElementById('debtId').value = d.id;
         document.getElementById('debtName').value = d.name;
+        document.getElementById('debtCreditLimit').value = d.creditLimit || '';
         document.getElementById('debtStartDate').value = d.startDate || formatLocalDate(new Date());
         document.getElementById('debtBalance').value = d.balance;
         document.getElementById('debtApr').value = d.apr;
         document.getElementById('debtMinPayment').value = d.minPayment;
+        document.getElementById('debtPromoEnabled').checked = !!d.promoEnabled;
         document.getElementById('debtPromoApr').value = d.promoApr !== undefined ? d.promoApr : 0;
         document.getElementById('debtPromoMonths').value = d.promoMonths || '';
+        document.getElementById('debtPromoEndDate').value = d.promoEndDate || '';
         document.getElementById('debtClosingDate').value = d.closingDate || '';
         document.getElementById('debtDueDate').value = d.dueDate || 1;
         document.getElementById('debtAnnualFee').value = d.annualFee || 0;
@@ -1826,16 +1983,20 @@
       } else {
         document.getElementById('debtId').value = '';
         document.getElementById('debtName').value = '';
+        document.getElementById('debtCreditLimit').value = '';
         document.getElementById('debtStartDate').value = formatLocalDate(new Date());
         document.getElementById('debtBalance').value = '';
         document.getElementById('debtApr').value = '';
         document.getElementById('debtMinPayment').value = '';
+        document.getElementById('debtPromoEnabled').checked = false;
         document.getElementById('debtPromoApr').value = '0';
         document.getElementById('debtPromoMonths').value = '';
+        document.getElementById('debtPromoEndDate').value = '';
         document.getElementById('debtClosingDate').value = '';
         document.getElementById('debtDueDate').value = '1';
         document.getElementById('debtAnnualFee').value = '0';
       }
+      togglePromoInputs();
       openModal('debtModal');
     }
 
@@ -1845,12 +2006,15 @@
       const data = {
         id: id || 'd-' + Date.now(),
         name: document.getElementById('debtName').value,
+        creditLimit: parseFloat(document.getElementById('debtCreditLimit').value) || 0,
         startDate: document.getElementById('debtStartDate').value,
         balance: parseFloat(document.getElementById('debtBalance').value) || 0,
         apr: parseFloat(document.getElementById('debtApr').value) || 0,
         minPayment: parseFloat(document.getElementById('debtMinPayment').value) || 0,
+        promoEnabled: document.getElementById('debtPromoEnabled').checked,
         promoApr: parseFloat(document.getElementById('debtPromoApr').value) || 0,
         promoMonths: parseInt(document.getElementById('debtPromoMonths').value) || 0,
+        promoEndDate: document.getElementById('debtPromoEndDate').value,
         closingDate: parseInt(document.getElementById('debtClosingDate').value) || null,
         dueDate: parseInt(document.getElementById('debtDueDate').value) || 1,
         annualFee: parseFloat(document.getElementById('debtAnnualFee').value) || 0,
@@ -1919,7 +2083,6 @@
       const ctx = document.getElementById('forecastChart')?.getContext('2d');
       if (!ctx) return;
 
-      const filter = document.getElementById('accountFilterSelect').value;
       const labels = [];
       const dataPoints = [];
 
@@ -1929,7 +2092,7 @@
       for (let i = 0; i <= totalMonths; i++) {
         labels.push(cur.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
         const dateStr = formatLocalDate(cur);
-        dataPoints.push(calculateBalanceUpToDate(dateStr, filter));
+        dataPoints.push(calculateBalanceUpToDate(dateStr));
         cur.setMonth(cur.getMonth() + 1);
       }
 
@@ -1967,7 +2130,7 @@
     // Initial load
     window.onload = async function() {
       await loadState();
-      verifyDataIntegrity(); // Ensure "Unassigned" exists safely upon refresh
+      verifyDataIntegrity();
       initBudgetFilters();
       renderApp();
     };
