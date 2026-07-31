@@ -76,7 +76,7 @@
     <button onclick="document.getElementById('negativeWarningBanner').classList.add('hidden')" class="text-white hover:text-gray-200 font-bold text-base">&times;</button>
   </div>
 
-  <!-- Positive Milestone Alert Banner -->
+  <!-- Positive Milestone Alert Banner (Debt-Free Date) -->
   <div id="debtFreeBanner" class="hidden max-w-md mx-auto mt-2 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold p-3 rounded-xl text-center shadow-sm flex items-center justify-center gap-2">
     <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
     <span id="debtFreeText">🎉 Positive Forecast Milestone: Debt Free Target Reached!</span>
@@ -87,6 +87,17 @@
 
     <!-- FORECAST TAB -->
     <section id="tab-forecast" class="space-y-3">
+      
+      <!-- MODE TOGGLE: LIQUID VS DEBT CALENDAR -->
+      <div class="flex gap-1 bg-amber-100/70 p-1 rounded-xl border border-amber-300 shadow-sm">
+        <button id="btnModeLiquid" onclick="switchForecastMode('liquid')" class="flex-1 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-wallet text-[10px]"></i> Liquid Calendar
+        </button>
+        <button id="btnModeDebt" onclick="switchForecastMode('debt')" class="flex-1 py-1.5 rounded-lg text-xs font-bold text-amber-900 hover:text-gray-900 flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-credit-card text-[10px]"></i> Debt Calendar
+        </button>
+      </div>
+
       <div class="flex gap-1 bg-gray-200 p-1 rounded-xl border border-gray-300">
         <button id="btnCalView" onclick="setSubView('cal')" class="flex-1 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm">Calendar</button>
         <button id="btnTrendView" onclick="setSubView('trend')" class="flex-1 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:text-gray-900">Trend</button>
@@ -94,7 +105,7 @@
 
       <div class="grid grid-cols-2 gap-2">
         <button onclick="openModal('multiAccountFilterModal')" class="bg-white border border-gray-300 rounded-xl p-2.5 text-xs font-medium text-gray-800 shadow-sm flex justify-between items-center text-left">
-          <span id="multiAccountFilterLabel" class="truncate">All accounts combined</span>
+          <span id="multiAccountFilterLabel" class="truncate">All Accounts Combined</span>
           <i class="fa-solid fa-chevron-down text-gray-500 text-[10px] ml-1"></i>
         </button>
         <select id="forecastRangeSelect" onchange="updateForecastRange(this.value)" class="select-custom bg-white border border-gray-300 rounded-xl p-2.5 text-xs font-bold text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
@@ -107,7 +118,7 @@
       </div>
 
       <div id="forecastCalView" class="space-y-3">
-        <!-- Month Navigation Bar with 'Today' Button -->
+        <!-- Month Navigation Bar -->
         <div class="flex items-center justify-between p-2 rounded-xl bg-white border border-gray-300 shadow-sm">
           <div class="flex items-center gap-1.5">
             <button onclick="changeMonth(-1)" title="Previous Month" class="px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold">&larr;</button>
@@ -127,7 +138,7 @@
 
         <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
 
-        <!-- Selected Day Card with Daily Net Activity Summary -->
+        <!-- Selected Day Card -->
         <div class="p-3.5 rounded-xl bg-white border border-gray-300 shadow-sm space-y-2.5">
           <div class="flex justify-between items-start">
             <div>
@@ -136,7 +147,6 @@
                 <div id="selectedDayBalance" class="text-lg font-mono font-bold text-gray-900">$0.00</div>
                 <button onclick="openModal('overrideModal')" class="text-[10px] text-amber-600 font-medium underline hover:text-amber-700"><i class="fa-solid fa-pen-to-square"></i> Override</button>
               </div>
-              <!-- Daily Net Change Display -->
               <div id="selectedDayNetChange" class="text-[11px] font-mono font-bold mt-1"></div>
             </div>
             <button onclick="openTransactionModal()" class="bg-gray-100 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-700 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-colors">
@@ -169,7 +179,6 @@
         <button onclick="openRecurringModal()" class="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-amber-600">+ Rule</button>
       </div>
 
-      <!-- Search & Sort Controls for Recurring Rules -->
       <div class="grid grid-cols-2 gap-2">
         <input id="recSearchInput" type="text" oninput="renderRecurring()" placeholder="Search rules..." class="bg-white border border-gray-300 rounded-xl p-2 text-xs text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
         <select id="recSortSelect" onchange="renderRecurring()" class="select-custom bg-white border border-gray-300 rounded-xl p-2 text-xs font-medium text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
@@ -203,7 +212,6 @@
         </div>
       </div>
 
-      <!-- Budget Time Period & Category Filtering Controls -->
       <div class="p-3 bg-white rounded-xl border border-gray-300 shadow-sm space-y-2">
         <div class="flex items-center justify-between">
           <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Budget Time Filter</label>
@@ -256,21 +264,21 @@
   <div id="multiAccountFilterModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
     <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-xl max-h-[80vh] overflow-y-auto">
       <div class="flex justify-between items-center">
-        <h3 class="font-bold text-base text-gray-900">Filter Accounts in View</h3>
+        <h3 id="multiFilterModalTitle" class="font-bold text-base text-gray-900">Filter Accounts in View</h3>
         <button onclick="closeModal('multiAccountFilterModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
       </div>
       <div class="space-y-3 text-xs">
         <label class="flex items-center gap-2 font-bold text-amber-700 p-2 bg-amber-50 rounded-lg cursor-pointer">
           <input type="checkbox" id="chkFilterAll" onchange="toggleAllAccountFilters(this.checked)" class="w-4 h-4 text-amber-500 rounded">
-          <span>Select All Accounts Combined</span>
+          <span id="lblFilterAll">Select All Accounts Combined</span>
         </label>
         
-        <div class="border-t border-gray-200 pt-2">
+        <div id="containerFilterLiquidSection" class="border-t border-gray-200 pt-2">
           <div class="text-[10px] font-bold text-gray-500 uppercase mb-1">Liquid Accounts</div>
           <div id="multiFilterLiquidList" class="space-y-1.5 pl-1"></div>
         </div>
 
-        <div class="border-t border-gray-200 pt-2">
+        <div id="containerFilterDebtSection" class="border-t border-gray-200 pt-2">
           <div class="text-[10px] font-bold text-gray-500 uppercase mb-1">Debt / Credit Cards</div>
           <div id="multiFilterDebtList" class="space-y-1.5 pl-1"></div>
         </div>
@@ -673,17 +681,21 @@
       ],
       overrides: {},
       exceptions: {},
-      paidStatus: {} // Key: "txId" or "ruleId_YYYY-MM-DD" -> boolean
+      paidStatus: {}
     };
 
     const STORAGE_KEY = 'ledger_v6_full_state';
     let state = DEMO_STATE;
     let activeTab = 'forecast';
+    let activeForecastMode = 'liquid'; // 'liquid' or 'debt'
     let currentMonthDate = new Date();
     let selectedDateStr = formatLocalDate(new Date());
     let forecastYears = 1;
     let chartInstance = null;
-    let selectedAccountIds = ['all']; // Multi-select filters
+
+    // Filters for separate calendar modes
+    let selectedLiquidAccountIds = ['all']; 
+    let selectedDebtAccountIds = ['all'];
 
     function persist() {
       try {
@@ -778,6 +790,24 @@
       }
     }
 
+    // --- FORECAST DUAL-CALENDAR MODE SWITCHER ---
+    function switchForecastMode(mode) {
+      activeForecastMode = mode;
+
+      const btnLiquid = document.getElementById('btnModeLiquid');
+      const btnDebt = document.getElementById('btnModeDebt');
+
+      if (mode === 'liquid') {
+        btnLiquid.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm flex items-center justify-center gap-1.5';
+        btnDebt.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold text-amber-900 hover:text-gray-900 flex items-center justify-center gap-1.5';
+      } else {
+        btnDebt.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm flex items-center justify-center gap-1.5';
+        btnLiquid.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold text-amber-900 hover:text-gray-900 flex items-center justify-center gap-1.5';
+      }
+
+      renderApp();
+    }
+
     // --- UI ROUTING ---
     function openModal(id) { 
       if (id === 'multiAccountFilterModal') renderMultiAccountFilterUI();
@@ -847,24 +877,38 @@
 
     // --- MULTI-SELECT ACCOUNT FILTERING LOGIC ---
     function renderMultiAccountFilterUI() {
-      const isAll = selectedAccountIds.includes('all');
+      const isLiquidMode = activeForecastMode === 'liquid';
+      const selectedArr = isLiquidMode ? selectedLiquidAccountIds : selectedDebtAccountIds;
+      const isAll = selectedArr.includes('all');
+
+      document.getElementById('multiFilterModalTitle').textContent = isLiquidMode ? 'Filter Liquid Accounts' : 'Filter Debt Accounts';
+      document.getElementById('lblFilterAll').textContent = isLiquidMode ? 'Select All Liquid Accounts Combined' : 'Select All Debt Accounts Combined';
       document.getElementById('chkFilterAll').checked = isAll;
 
-      const liquidContainer = document.getElementById('multiFilterLiquidList');
-      liquidContainer.innerHTML = state.accounts.map(a => `
-        <label class="flex items-center gap-2 cursor-pointer text-gray-800">
-          <input type="checkbox" class="chk-acc-filter w-4 h-4 text-amber-500 rounded" value="${a.id}" ${isAll || selectedAccountIds.includes(a.id) ? 'checked' : ''}>
-          <span>${a.name}</span>
-        </label>
-      `).join('');
+      const liquidContainer = document.getElementById('containerFilterLiquidSection');
+      const debtContainer = document.getElementById('containerFilterDebtSection');
 
-      const debtContainer = document.getElementById('multiFilterDebtList');
-      debtContainer.innerHTML = state.debts.map(d => `
-        <label class="flex items-center gap-2 cursor-pointer text-gray-800">
-          <input type="checkbox" class="chk-acc-filter w-4 h-4 text-amber-500 rounded" value="debt-${d.id}" ${isAll || selectedAccountIds.includes(`debt-${d.id}`) ? 'checked' : ''}>
-          <span>${d.name} (Debt)</span>
-        </label>
-      `).join('');
+      if (isLiquidMode) {
+        liquidContainer.classList.remove('hidden');
+        debtContainer.classList.add('hidden');
+
+        document.getElementById('multiFilterLiquidList').innerHTML = state.accounts.map(a => `
+          <label class="flex items-center gap-2 cursor-pointer text-gray-800">
+            <input type="checkbox" class="chk-acc-filter w-4 h-4 text-amber-500 rounded" value="${a.id}" ${isAll || selectedArr.includes(a.id) ? 'checked' : ''}>
+            <span>${a.name}</span>
+          </label>
+        `).join('');
+      } else {
+        liquidContainer.classList.add('hidden');
+        debtContainer.classList.remove('hidden');
+
+        document.getElementById('multiFilterDebtList').innerHTML = state.debts.map(d => `
+          <label class="flex items-center gap-2 cursor-pointer text-gray-800">
+            <input type="checkbox" class="chk-acc-filter w-4 h-4 text-amber-500 rounded" value="debt-${d.id}" ${isAll || selectedArr.includes(`debt-${d.id}`) ? 'checked' : ''}>
+            <span>${d.name} (Debt)</span>
+          </label>
+        `).join('');
+      }
     }
 
     function toggleAllAccountFilters(checked) {
@@ -875,11 +919,15 @@
       const checkboxes = document.querySelectorAll('.chk-acc-filter');
       const checkedVals = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
       
-      const totalCount = state.accounts.length + state.debts.length;
-      if (document.getElementById('chkFilterAll').checked || checkedVals.length === totalCount || checkedVals.length === 0) {
-        selectedAccountIds = ['all'];
+      const isLiquidMode = activeForecastMode === 'liquid';
+      const availableCount = isLiquidMode ? state.accounts.length : state.debts.length;
+
+      if (document.getElementById('chkFilterAll').checked || checkedVals.length === availableCount || checkedVals.length === 0) {
+        if (isLiquidMode) selectedLiquidAccountIds = ['all'];
+        else selectedDebtAccountIds = ['all'];
       } else {
-        selectedAccountIds = checkedVals;
+        if (isLiquidMode) selectedLiquidAccountIds = checkedVals;
+        else selectedDebtAccountIds = checkedVals;
       }
 
       closeModal('multiAccountFilterModal');
@@ -887,8 +935,13 @@
     }
 
     function isAccountActive(accId) {
-      if (selectedAccountIds.includes('all')) return true;
-      return selectedAccountIds.includes(accId);
+      if (activeForecastMode === 'liquid') {
+        if (selectedLiquidAccountIds.includes('all')) return true;
+        return selectedLiquidAccountIds.includes(accId);
+      } else {
+        if (selectedDebtAccountIds.includes('all')) return true;
+        return selectedDebtAccountIds.includes(accId);
+      }
     }
 
     // --- RECURRING MATCHING ENGINE ---
@@ -896,82 +949,85 @@
       const targetDate = parseLocalDate(targetDateStr);
       const matches = [];
 
-      // 1. Liquid recurring rules
-      state.recurring.forEach(rule => {
-        if (rule.paused) return;
-        if (!isAccountActive(rule.accountId)) return;
+      // 1. Liquid recurring rules (active only during Liquid Calendar Mode)
+      if (activeForecastMode === 'liquid') {
+        state.recurring.forEach(rule => {
+          if (rule.paused) return;
+          if (!isAccountActive(rule.accountId)) return;
 
-        const start = parseLocalDate(rule.startDate);
-        if (targetDate < start) return;
+          const start = parseLocalDate(rule.startDate);
+          if (targetDate < start) return;
 
-        const excKey = `${rule.id}_${targetDateStr}`;
-        if (state.exceptions[excKey] && state.exceptions[excKey].skipped) return;
+          const excKey = `${rule.id}_${targetDateStr}`;
+          if (state.exceptions[excKey] && state.exceptions[excKey].skipped) return;
 
-        let hit = false;
+          let hit = false;
 
-        if (rule.mode === 'weekday') {
-          if (targetDate.getDay() === parseInt(rule.dayOfWeek)) {
-            const dayNum = targetDate.getDate();
-            const nth = parseInt(rule.nth);
-            if (nth === -1) {
-              const nextWeek = new Date(targetDate);
-              nextWeek.setDate(nextWeek.getDate() + 7);
-              if (nextWeek.getMonth() !== targetDate.getMonth()) hit = true;
-            } else if (Math.ceil(dayNum / 7) === nth) {
-              hit = true;
+          if (rule.mode === 'weekday') {
+            if (targetDate.getDay() === parseInt(rule.dayOfWeek)) {
+              const dayNum = targetDate.getDate();
+              const nth = parseInt(rule.nth);
+              if (nth === -1) {
+                const nextWeek = new Date(targetDate);
+                nextWeek.setDate(nextWeek.getDate() + 7);
+                if (nextWeek.getMonth() !== targetDate.getMonth()) hit = true;
+              } else if (Math.ceil(dayNum / 7) === nth) {
+                hit = true;
+              }
+            }
+          } else {
+            const count = rule.count || 1;
+            const unit = rule.unit || 'month';
+
+            if (unit === 'day') {
+              const diffDays = Math.round((targetDate - start) / (1000 * 60 * 60 * 24));
+              if (diffDays >= 0 && diffDays % count === 0) hit = true;
+            } else if (unit === 'week') {
+              const diffDays = Math.round((targetDate - start) / (1000 * 60 * 60 * 24));
+              if (diffDays >= 0 && diffDays % (count * 7) === 0) hit = true;
+            } else if (unit === 'month') {
+              const monthsDiff = (targetDate.getFullYear() - start.getFullYear()) * 12 + (targetDate.getMonth() - start.getMonth());
+              if (monthsDiff >= 0 && monthsDiff % count === 0 && targetDate.getDate() === start.getDate()) hit = true;
+            } else if (unit === 'year') {
+              const yearsDiff = targetDate.getFullYear() - start.getFullYear();
+              if (yearsDiff >= 0 && yearsDiff % count === 0 && targetDate.getMonth() === start.getMonth() && targetDate.getDate() === start.getDate()) hit = true;
             }
           }
-        } else {
-          const count = rule.count || 1;
-          const unit = rule.unit || 'month';
 
-          if (unit === 'day') {
-            const diffDays = Math.round((targetDate - start) / (1000 * 60 * 60 * 24));
-            if (diffDays >= 0 && diffDays % count === 0) hit = true;
-          } else if (unit === 'week') {
-            const diffDays = Math.round((targetDate - start) / (1000 * 60 * 60 * 24));
-            if (diffDays >= 0 && diffDays % (count * 7) === 0) hit = true;
-          } else if (unit === 'month') {
-            const monthsDiff = (targetDate.getFullYear() - start.getFullYear()) * 12 + (targetDate.getMonth() - start.getMonth());
-            if (monthsDiff >= 0 && monthsDiff % count === 0 && targetDate.getDate() === start.getDate()) hit = true;
-          } else if (unit === 'year') {
-            const yearsDiff = targetDate.getFullYear() - start.getFullYear();
-            if (yearsDiff >= 0 && yearsDiff % count === 0 && targetDate.getMonth() === start.getMonth() && targetDate.getDate() === start.getDate()) hit = true;
+          if (hit && rule.endType === 'until_date' && rule.endDate && targetDate > parseLocalDate(rule.endDate)) {
+            hit = false;
           }
-        }
 
-        if (hit && rule.endType === 'until_date' && rule.endDate && targetDate > parseLocalDate(rule.endDate)) {
-          hit = false;
-        }
+          if (hit) {
+            matches.push({ ...rule, isRecurring: true, date: targetDateStr, instanceId: `${rule.id}_${targetDateStr}` });
+          }
+        });
+      }
 
-        if (hit) {
-          matches.push({ ...rule, isRecurring: true, date: targetDateStr, instanceId: `${rule.id}_${targetDateStr}` });
-        }
-      });
-
-      // 2. Scheduled debt payments and interest
+      // 2. Scheduled debt payments and interest charges
       state.debts.forEach(d => {
         const debtKey = `debt-${d.id}`;
-        if (!isAccountActive(debtKey) && !selectedAccountIds.includes('all')) return;
-
         const debtStart = d.startDate ? parseLocalDate(d.startDate) : new Date(0);
+
         if (targetDate >= debtStart) {
-          const isOnlyDebtSelected = selectedAccountIds.every(id => id.startsWith('debt-')) && !selectedAccountIds.includes('all');
-
-          // Payments on due date
-          if (d.dueDate && parseInt(d.dueDate) === targetDate.getDate()) {
-            if (!isOnlyDebtSelected && d.includeInForecast) {
+          if (activeForecastMode === 'liquid') {
+            // In Liquid Calendar mode, display debt payments as expenses exiting cash
+            if (d.includeInForecast && d.dueDate && parseInt(d.dueDate) === targetDate.getDate()) {
               matches.push({ id: `debt-pay-${d.id}`, desc: `${d.name} Payment`, amount: d.minPayment, category: 'Housing', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
-            } else if (isOnlyDebtSelected) {
-              matches.push({ id: `debt-pay-${d.id}`, desc: `Payment Received (${d.name})`, amount: d.minPayment, category: 'Housing', type: 'income', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
             }
-          }
+          } else {
+            // In Debt Calendar mode, display payment posts (reducing debt) and interest (increasing debt)
+            if (isAccountActive(debtKey)) {
+              if (d.dueDate && parseInt(d.dueDate) === targetDate.getDate()) {
+                matches.push({ id: `debt-pay-${d.id}`, desc: `Payment Post (${d.name})`, amount: d.minPayment, category: 'Housing', type: 'income', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
+              }
 
-          // Interest charge on closing date when viewing debt accounts
-          if (isOnlyDebtSelected && d.closingDate && parseInt(d.closingDate) === targetDate.getDate()) {
-            const calculatedInterest = calculateDebtInterestForDate(d, targetDate);
-            if (calculatedInterest > 0) {
-              matches.push({ id: `debt-int-${d.id}`, desc: `Interest Charge (${d.name})`, amount: calculatedInterest, category: 'Utilities', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-int-${d.id}_${targetDateStr}` });
+              if (d.closingDate && parseInt(d.closingDate) === targetDate.getDate()) {
+                const calculatedInterest = calculateDebtInterestForDate(d, targetDate);
+                if (calculatedInterest > 0) {
+                  matches.push({ id: `debt-int-${d.id}`, desc: `Interest Charge (${d.name})`, amount: calculatedInterest, category: 'Utilities', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-int-${d.id}_${targetDateStr}` });
+                }
+              }
             }
           }
         }
@@ -1039,10 +1095,9 @@
       }
 
       const targetDate = parseLocalDate(targetDateStr);
-      const isOnlyDebtSelected = selectedAccountIds.every(id => id.startsWith('debt-')) && !selectedAccountIds.includes('all');
 
-      // --- IF FILTERING DEBT ACCOUNTS EXCLUSIVELY ---
-      if (isOnlyDebtSelected) {
+      // --- DEBT CALENDAR MODE ---
+      if (activeForecastMode === 'debt') {
         let totalDebt = 0;
         state.debts.forEach(d => {
           if (!isAccountActive(`debt-${d.id}`)) return;
@@ -1095,10 +1150,10 @@
           totalDebt += Math.max(0, curBal);
         });
 
-        return -totalDebt; // Return as negative representation for total debt balance
+        return -totalDebt; // Expressed as negative sum for debt balance rendering
       }
 
-      // --- LIQUID ACCOUNTS SIMULATION ---
+      // --- LIQUID CALENDAR MODE ---
       const startingBase = state.accounts
         .filter(a => isAccountActive(a.id))
         .reduce((s, a) => s + a.balance, 0);
@@ -1134,6 +1189,12 @@
     }
 
     function checkQuarterlyNegativeBalance() {
+      const warningBanner = document.getElementById('negativeWarningBanner');
+      if (activeForecastMode === 'debt') {
+        warningBanner.classList.add('hidden');
+        return;
+      }
+
       const today = new Date();
       const ninetyDaysLater = new Date();
       ninetyDaysLater.setDate(today.getDate() + 90);
@@ -1152,11 +1213,9 @@
         cur.setDate(cur.getDate() + 1);
       }
 
-      const warningBanner = document.getElementById('negativeWarningBanner');
       const warningText = document.getElementById('negativeWarningText');
-      const isDebtView = selectedAccountIds.every(id => id.startsWith('debt-')) && !selectedAccountIds.includes('all');
 
-      if (firstNegativeDate && !isDebtView) {
+      if (firstNegativeDate) {
         const negD = parseLocalDate(firstNegativeDate);
         const monthName = negD.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         warningText.textContent = `WARNING: Projected negative balance (${fmtMoney(minNegativeBal)}) starting on ${monthName} within the next 90 days!`;
@@ -1169,9 +1228,8 @@
     function checkDebtFreeMilestone() {
       const debtBanner = document.getElementById('debtFreeBanner');
       const debtText = document.getElementById('debtFreeText');
-      const isDebtView = selectedAccountIds.every(id => id.startsWith('debt-')) && !selectedAccountIds.includes('all');
 
-      if (isDebtView) {
+      if (activeForecastMode === 'debt') {
         const today = new Date();
         let cur = new Date(today);
         const maxScan = new Date(today);
@@ -1180,7 +1238,7 @@
         let debtFreeDate = null;
         while (cur <= maxScan) {
           const k = formatLocalDate(cur);
-          const bal = calculateBalanceUpToDate(k); // Negative number representing debt
+          const bal = calculateBalanceUpToDate(k);
           if (bal >= 0) {
             debtFreeDate = k;
             break;
@@ -1190,7 +1248,7 @@
 
         if (debtFreeDate) {
           const d = parseLocalDate(debtFreeDate);
-          debtText.textContent = `🎉 Positive Forecast Milestone: Debt Free Reached on ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}!`;
+          debtText.textContent = `🎉 Positive Forecast Milestone: Selected Debts Projected Paid Off on ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}!`;
           debtBanner.classList.remove('hidden');
           return;
         }
@@ -1204,30 +1262,29 @@
       endDate.setMonth(endDate.getMonth() + Math.round(forecastYears * 12));
       const netWorth = calculateBalanceUpToDate(formatLocalDate(endDate));
       
-      const isDebtView = selectedAccountIds.every(id => id.startsWith('debt-')) && !selectedAccountIds.includes('all');
       const labelEl = document.getElementById('netWorthLabel');
       const displayEl = document.getElementById('netWorthDisplay');
 
-      labelEl.textContent = isDebtView 
-        ? `TOTAL DEBT BALANCE (${forecastYears < 1 ? forecastYears*12 + ' MO' : forecastYears + ' YR'})` 
-        : `FORECASTED NET WORTH (${forecastYears < 1 ? forecastYears*12 + ' MO' : forecastYears + ' YR'})`;
-
-      if (isDebtView) {
+      if (activeForecastMode === 'debt') {
+        labelEl.textContent = `TOTAL DEBT BALANCE (${forecastYears < 1 ? forecastYears*12 + ' MO' : forecastYears + ' YR'})`;
         displayEl.textContent = fmtMoney(Math.abs(netWorth));
         displayEl.className = 'text-2xl font-mono font-bold text-red-600';
       } else {
+        labelEl.textContent = `FORECASTED NET WORTH (${forecastYears < 1 ? forecastYears*12 + ' MO' : forecastYears + ' YR'})`;
         displayEl.textContent = fmtMoney(netWorth);
-        displayEl.className = 'text-2xl font-mono font-bold text-gray-900';
+        displayEl.className = netWorth < 0 ? 'text-2xl font-mono font-bold text-red-600' : 'text-2xl font-mono font-bold text-emerald-700';
       }
 
       // Update Filter Button Label
       const filterLabel = document.getElementById('multiAccountFilterLabel');
-      if (selectedAccountIds.includes('all')) {
-        filterLabel.textContent = 'All accounts combined';
-      } else if (selectedAccountIds.length === 1) {
-        filterLabel.textContent = getAccountName(selectedAccountIds[0]);
+      const selectedArr = activeForecastMode === 'liquid' ? selectedLiquidAccountIds : selectedDebtAccountIds;
+      
+      if (selectedArr.includes('all')) {
+        filterLabel.textContent = activeForecastMode === 'liquid' ? 'All Liquid Accounts Combined' : 'All Debt Accounts Combined';
+      } else if (selectedArr.length === 1) {
+        filterLabel.textContent = getAccountName(selectedArr[0]);
       } else {
-        filterLabel.textContent = `${selectedAccountIds.length} Accounts Selected`;
+        filterLabel.textContent = `${selectedArr.length} Accounts Selected`;
       }
 
       // Populate Select Options inside Modals
@@ -1546,7 +1603,6 @@
             const promoApr = d.promoApr !== undefined ? parseFloat(d.promoApr) : 0;
             const standardApr = d.apr;
 
-            // Utilization Calculation
             const limit = parseFloat(d.creditLimit || 0);
             const utilPct = limit > 0 ? ((d.balance / limit) * 100).toFixed(1) : null;
 
@@ -1903,7 +1959,6 @@
       openModal('occurrenceEditModal');
     }
 
-    // --- RECURRING LOGIC FIXES (SPLIT ON EDIT / $0 CANCEL) ---
     function saveOccurrenceEdit() {
       const ruleId = document.getElementById('occRuleId').value;
       const originalDate = document.getElementById('occOriginalDate').value;
@@ -1927,9 +1982,7 @@
           });
         }
       } else {
-        // Scope = 'future'
         if (rule) {
-          // Cap original rule end date to the day before newDate
           const newStartD = parseLocalDate(newDate);
           const endD = new Date(newStartD);
           endD.setDate(endD.getDate() - 1);
@@ -1937,7 +1990,6 @@
           rule.endType = 'until_date';
           rule.endDate = formatLocalDate(endD);
 
-          // If newAmount is 0, do not create a new rule (effectively cancels the series)
           if (newAmount > 0) {
             const newRule = {
               ...rule,
