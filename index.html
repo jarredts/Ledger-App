@@ -637,7 +637,6 @@
   </div>
 
   <script>
-    // --- ANONYMOUS DEMO DATA ---
     const DEMO_STATE = {
       accounts: [
         { id: 'acc-1', name: 'Primary Checking', balance: 1500.00 },
@@ -704,7 +703,7 @@
     const STORAGE_KEY = 'ledger_v6_full_state';
     let state = DEMO_STATE;
     let activeTab = 'forecast';
-    let activeForecastMode = 'liquid'; // 'liquid' or 'debt'
+    let activeForecastMode = 'liquid';
     let currentMonthDate = new Date();
     let selectedDateStr = formatLocalDate(new Date());
     let forecastYears = 1;
@@ -712,6 +711,26 @@
 
     let selectedLiquidAccountIds = ['all']; 
     let selectedDebtAccountIds = ['all'];
+
+    let calcWorker = null;
+    let balanceCache = {};
+
+    function initWorker() {
+      if (window.Worker) {
+        try {
+          calcWorker = new Worker('calculator.worker.js');
+          calcWorker.onmessage = function(e) {
+            const { targetDateStr, totalBalance } = e.data;
+            balanceCache[targetDateStr] = totalBalance;
+            if (targetDateStr === selectedDateStr) {
+              document.getElementById('selectedDayBalance').textContent = fmtMoney(totalBalance);
+            }
+          };
+        } catch(err) {
+          console.log('Worker initialization skipped');
+        }
+      }
+    }
 
     function persist() {
       try {
@@ -728,7 +747,7 @@
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) state = JSON.parse(raw);
       } catch (e) {
-        // Fallback to demo
+        // Fallback
       }
     }
 
@@ -761,6 +780,7 @@
     }
 
     function saveState() {
+      balanceCache = {};
       renderApp();
       persist();
     }
@@ -809,6 +829,7 @@
 
     function switchForecastMode(mode) {
       activeForecastMode = mode;
+      balanceCache = {};
 
       const btnLiquid = document.getElementById('btnModeLiquid');
       const btnDebt = document.getElementById('btnModeDebt');
@@ -943,15 +964,18 @@
         else selectedDebtAccountIds = checkedVals;
       }
 
+      balanceCache = {};
       closeModal('multiAccountFilterModal');
       renderApp();
     }
 
     function isAccountActive(accId) {
       if (activeForecastMode === 'liquid') {
+        if (accId.startsWith('debt-')) return false; // Strictly ignore debt IDs in Liquid Mode
         if (selectedLiquidAccountIds.includes('all')) return true;
         return selectedLiquidAccountIds.includes(accId);
       } else {
+        if (!accId.startsWith('debt-')) return false; // Strictly ignore liquid IDs in Debt Mode
         if (selectedDebtAccountIds.includes('all')) return true;
         return selectedDebtAccountIds.includes(accId);
       }
@@ -1069,10 +1093,23 @@
       return Math.max(0, curBal * monthlyRate);
     }
 
-    // --- ACCURATE DYNAMIC DEBT & LIQUID SIMULATOR ---
     function calculateBalanceUpToDate(targetDateStr) {
       if (state.overrides[targetDateStr]) {
         return state.overrides[targetDateStr];
+      }
+
+      if (balanceCache[targetDateStr] !== undefined) {
+        return balanceCache[targetDateStr];
+      }
+
+      if (calcWorker) {
+        calcWorker.postMessage({
+          state,
+          activeForecastMode,
+          selectedLiquidAccountIds,
+          selectedDebtAccountIds,
+          targetDateStr
+        });
       }
 
       const targetDate = parseLocalDate(targetDateStr);
@@ -1099,7 +1136,6 @@
           while (cur <= targetDate && curBal > 0) {
             const k = formatLocalDate(cur);
 
-            // 1. Add Closing Interest
             if (d.closingDate && cur.getDate() === parseInt(d.closingDate) && cur > debtStartDate) {
               let activeApr = d.apr;
               if (promoEndDate && cur <= promoEndDate) {
@@ -1109,7 +1145,6 @@
               curBal += curBal * monthlyRate;
             }
 
-            // 2. Subtract Standard Virtual Payment (unless skipped)
             if (d.dueDate && cur.getDate() === parseInt(d.dueDate)) {
               const excKey = `debt-pay-${d.id}_${k}`;
               if (!state.exceptions[excKey] || !state.exceptions[excKey].skipped) {
@@ -1118,7 +1153,6 @@
               }
             }
 
-            // 3. Process Manual Log Transactions for this Debt Account
             const debtTxs = state.transactions.filter(t => t.accountId === `debt-${d.id}` && t.date === k);
             debtTxs.forEach(t => {
               if (t.type === 'expense') curBal += t.amount;
@@ -1131,6 +1165,7 @@
           totalDebt += Math.max(0, curBal);
         });
 
+        balanceCache[targetDateStr] = -totalDebt;
         return -totalDebt;
       }
 
@@ -1161,7 +1196,9 @@
         cur.setDate(cur.getDate() + 1);
       }
 
-      return startingBase + txDelta + recurringDelta;
+      const result = startingBase + txDelta + recurringDelta;
+      balanceCache[targetDateStr] = result;
+      return result;
     }
 
     function checkQuarterlyNegativeBalance() {
@@ -1429,6 +1466,7 @@
       const dayBalance = calculateBalanceUpToDate(selectedDateStr);
       document.getElementById('selectedDayBalance').textContent = fmtMoney(dayBalance);
 
+      // STRICT ACCOUNT FILTERING FOR SELECTED DAY VIEW
       const oneTimes = state.transactions.filter(t => t.date === selectedDateStr && isAccountActive(t.accountId));
       const recurrings = getRecurringForDate(selectedDateStr);
       const allEvents = [...oneTimes, ...recurrings];
@@ -1927,7 +1965,6 @@
       openModal('occurrenceEditModal');
     }
 
-    // --- RECURRING & VIRTUAL DEBT OCCURRENCE EDIT FIX ---
     function saveOccurrenceEdit() {
       const ruleId = document.getElementById('occRuleId').value;
       const originalDate = document.getElementById('occOriginalDate').value;
@@ -1935,30 +1972,26 @@
       const newAmount = parseFloat(document.getElementById('occNewAmount').value) || 0;
       const scope = document.getElementById('occEditScope').value;
 
-      // Handle Virtual Debt Payment Edits
       if (ruleId.startsWith('debt-pay-')) {
         const debtId = ruleId.replace('debt-pay-', '');
         const debt = state.debts.find(d => d.id === debtId);
         
-        // Skip default virtual payment for that instance
         const excKey = `debt-pay-${debtId}_${originalDate}`;
         state.exceptions[excKey] = { skipped: true };
 
-        // Save adjusted payment transaction directly into log
         if (newAmount > 0) {
           state.transactions.push({
             id: 'tx-' + Date.now(),
             desc: (debt ? debt.name : 'Debt Payment') + ' (Custom Payment)',
             amount: newAmount,
             category: 'Housing',
-            type: 'income', // Income type reduces debt balance in Debt Calendar mode
+            type: 'income',
             accountId: `debt-${debtId}`,
             date: newDate,
             isPaid: true
           });
         }
       } else {
-        // Standard Liquid Recurring Rules
         const rule = state.recurring.find(r => r.id === ruleId);
         if (scope === 'single') {
           state.exceptions[`${ruleId}_${originalDate}`] = { skipped: true };
@@ -2174,6 +2207,7 @@
     window.onload = async function() {
       await loadState();
       verifyDataIntegrity();
+      initWorker();
       initBudgetFilters();
       renderApp();
     };
