@@ -88,7 +88,7 @@
     <!-- FORECAST TAB -->
     <section id="tab-forecast" class="space-y-3">
       
-      <!-- MODE TOGGLE: LIQUID CALENDAR VS DEBT CALENDAR -->
+      <!-- MODE TOGGLE -->
       <div class="flex gap-1 bg-amber-100/80 p-1 rounded-xl border border-amber-300 shadow-sm">
         <button id="btnModeLiquid" onclick="switchForecastMode('liquid')" class="flex-1 py-2 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm flex items-center justify-center gap-1.5 transition-all">
           <i class="fa-solid fa-wallet text-[11px]"></i> Liquid Calendar
@@ -712,26 +712,6 @@
     let selectedLiquidAccountIds = ['all']; 
     let selectedDebtAccountIds = ['all'];
 
-    let calcWorker = null;
-    let balanceCache = {};
-
-    function initWorker() {
-      if (window.Worker) {
-        try {
-          calcWorker = new Worker('calculator.worker.js');
-          calcWorker.onmessage = function(e) {
-            const { targetDateStr, totalBalance } = e.data;
-            balanceCache[targetDateStr] = totalBalance;
-            if (targetDateStr === selectedDateStr) {
-              document.getElementById('selectedDayBalance').textContent = fmtMoney(totalBalance);
-            }
-          };
-        } catch(err) {
-          console.log('Worker initialization skipped');
-        }
-      }
-    }
-
     function persist() {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -780,7 +760,6 @@
     }
 
     function saveState() {
-      balanceCache = {};
       renderApp();
       persist();
     }
@@ -829,7 +808,6 @@
 
     function switchForecastMode(mode) {
       activeForecastMode = mode;
-      balanceCache = {};
 
       const btnLiquid = document.getElementById('btnModeLiquid');
       const btnDebt = document.getElementById('btnModeDebt');
@@ -964,18 +942,17 @@
         else selectedDebtAccountIds = checkedVals;
       }
 
-      balanceCache = {};
       closeModal('multiAccountFilterModal');
       renderApp();
     }
 
     function isAccountActive(accId) {
       if (activeForecastMode === 'liquid') {
-        if (accId.startsWith('debt-')) return false; // Strictly ignore debt IDs in Liquid Mode
+        if (accId.startsWith('debt-')) return false; 
         if (selectedLiquidAccountIds.includes('all')) return true;
         return selectedLiquidAccountIds.includes(accId);
       } else {
-        if (!accId.startsWith('debt-')) return false; // Strictly ignore liquid IDs in Debt Mode
+        if (!accId.startsWith('debt-')) return false; 
         if (selectedDebtAccountIds.includes('all')) return true;
         return selectedDebtAccountIds.includes(accId);
       }
@@ -1098,20 +1075,6 @@
         return state.overrides[targetDateStr];
       }
 
-      if (balanceCache[targetDateStr] !== undefined) {
-        return balanceCache[targetDateStr];
-      }
-
-      if (calcWorker) {
-        calcWorker.postMessage({
-          state,
-          activeForecastMode,
-          selectedLiquidAccountIds,
-          selectedDebtAccountIds,
-          targetDateStr
-        });
-      }
-
       const targetDate = parseLocalDate(targetDateStr);
 
       if (activeForecastMode === 'debt') {
@@ -1165,7 +1128,6 @@
           totalDebt += Math.max(0, curBal);
         });
 
-        balanceCache[targetDateStr] = -totalDebt;
         return -totalDebt;
       }
 
@@ -1196,9 +1158,7 @@
         cur.setDate(cur.getDate() + 1);
       }
 
-      const result = startingBase + txDelta + recurringDelta;
-      balanceCache[targetDateStr] = result;
-      return result;
+      return startingBase + txDelta + recurringDelta;
     }
 
     function checkQuarterlyNegativeBalance() {
@@ -1466,7 +1426,6 @@
       const dayBalance = calculateBalanceUpToDate(selectedDateStr);
       document.getElementById('selectedDayBalance').textContent = fmtMoney(dayBalance);
 
-      // STRICT ACCOUNT FILTERING FOR SELECTED DAY VIEW
       const oneTimes = state.transactions.filter(t => t.date === selectedDateStr && isAccountActive(t.accountId));
       const recurrings = getRecurringForDate(selectedDateStr);
       const allEvents = [...oneTimes, ...recurrings];
@@ -2207,7 +2166,6 @@
     window.onload = async function() {
       await loadState();
       verifyDataIntegrity();
-      initWorker();
       initBudgetFilters();
       renderApp();
     };
