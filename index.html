@@ -153,6 +153,14 @@
               + Transaction
             </button>
           </div>
+          
+          <div class="flex justify-end pt-1">
+            <label class="flex items-center gap-1.5 text-[10px] text-gray-500 font-semibold cursor-pointer">
+              <input type="checkbox" id="chkHidePastSelectedDay" onchange="renderSelectedDay()" class="w-3 h-3 text-amber-500 rounded">
+              <span>Hide Paid / Cleared Items</span>
+            </label>
+          </div>
+
           <div id="selectedDayEventsList" class="space-y-1.5 border-t border-gray-100 pt-2"></div>
         </div>
       </div>
@@ -168,7 +176,13 @@
         <h2 class="text-base font-bold text-gray-900">Transaction History</h2>
         <button onclick="openTransactionModal()" class="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-amber-600">+ Entry</button>
       </div>
-      <input id="logSearchInput" type="text" oninput="renderLog()" placeholder="Search description, category, or amount..." class="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs text-gray-800 shadow-sm">
+      <div class="flex items-center justify-between gap-2">
+        <input id="logSearchInput" type="text" oninput="renderLog()" placeholder="Search description, category, or amount..." class="flex-1 bg-white border border-gray-300 rounded-xl p-2.5 text-xs text-gray-800 shadow-sm">
+        <label class="flex items-center gap-1 text-[10px] text-gray-600 font-semibold cursor-pointer whitespace-nowrap bg-white border border-gray-300 p-2.5 rounded-xl shadow-sm">
+          <input type="checkbox" id="chkHidePastLog" onchange="renderLog()" class="w-3.5 h-3.5 text-amber-500 rounded">
+          <span>Hide Past</span>
+        </label>
+      </div>
       <div id="fullLogList" class="space-y-2"></div>
     </section>
 
@@ -496,7 +510,7 @@
     </div>
   </div>
 
-  <!-- Debt Account Modal -->
+  <!-- Debt Account Modal (With End Date & Edit Scope) -->
   <div id="debtModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
     <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
       <div class="flex justify-between items-center">
@@ -505,6 +519,19 @@
       </div>
       <form onsubmit="saveDebt(event)" class="space-y-3 text-xs">
         <input id="debtId" type="hidden">
+        
+        <div id="debtEditScopeContainer" class="hidden p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5">
+          <label class="block text-[10px] font-bold text-amber-800 uppercase">Edit Scope</label>
+          <select id="debtEditScope" onchange="toggleDebtEditScopeUI()" class="w-full bg-white border border-gray-300 rounded-lg p-2 text-gray-800">
+            <option value="entire">Edit entire debt account history</option>
+            <option value="from_date">Edit starting from effective date (Split terms)</option>
+          </select>
+          <div id="debtEffectiveDateContainer" class="hidden pt-1">
+            <label class="block text-[10px] font-bold text-amber-800">Effective Date for New Terms</label>
+            <input id="debtEffectiveDate" type="date" class="w-full bg-white border border-gray-300 rounded-lg p-2 text-gray-800">
+          </div>
+        </div>
+
         <div>
           <label class="block text-[10px] font-bold text-gray-500 mb-0.5">ACCOUNT NAME</label>
           <input id="debtName" type="text" placeholder="e.g. Wells Fargo Credit" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
@@ -527,14 +554,20 @@
             <input id="debtStartDate" type="date" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
           </div>
           <div>
-            <label class="block text-[10px] font-bold text-gray-500 mb-0.5">STANDARD APR (%)</label>
-            <input id="debtApr" type="number" step="0.01" placeholder="19.49" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
+            <label class="block text-[10px] font-bold text-gray-500 mb-0.5">END DATE (OPTIONAL)</label>
+            <input id="debtEndDate" type="date" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
           </div>
         </div>
 
-        <div>
-          <label class="block text-[10px] font-bold text-gray-500 mb-0.5">TARGET PAYMENT ($)</label>
-          <input id="debtMinPayment" type="number" step="0.01" placeholder="150.00" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[10px] font-bold text-gray-500 mb-0.5">STANDARD APR (%)</label>
+            <input id="debtApr" type="number" step="0.01" placeholder="19.49" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-gray-500 mb-0.5">TARGET PAYMENT ($)</label>
+            <input id="debtMinPayment" type="number" step="0.01" placeholder="150.00" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
+          </div>
         </div>
 
         <div class="p-2.5 bg-amber-50/60 border border-amber-200 rounded-xl space-y-2">
@@ -666,6 +699,7 @@
           minPayment: 150.00, 
           annualFee: 0, 
           startDate: '2026-08-01', 
+          endDate: '',
           closingDate: 25, 
           dueDate: 15, 
           promoEnabled: false,
@@ -683,6 +717,7 @@
           minPayment: 100.00, 
           annualFee: 0, 
           startDate: '2026-08-01', 
+          endDate: '',
           closingDate: 20, 
           dueDate: 10, 
           promoEnabled: false,
@@ -754,6 +789,7 @@
           if (d.creditLimit === undefined) d.creditLimit = 0;
           if (d.promoEnabled === undefined) d.promoEnabled = false;
           if (d.promoEndDate === undefined) d.promoEndDate = '';
+          if (d.endDate === undefined) d.endDate = '';
         });
       }
       persist();
@@ -1020,6 +1056,9 @@
         const debtKey = `debt-${d.id}`;
         const debtStart = d.startDate ? parseLocalDate(d.startDate) : new Date(0);
 
+        // Terminate virtual debt events after explicit Debt End Date
+        if (d.endDate && targetDate > parseLocalDate(d.endDate)) return;
+
         if (targetDate >= debtStart) {
           const excKey = `debt-pay-${d.id}_${targetDateStr}`;
           const isSkipped = state.exceptions[excKey] && state.exceptions[excKey].skipped;
@@ -1051,6 +1090,7 @@
     function calculateDebtInterestForDate(debt, targetDate) {
       const debtStartDate = debt.startDate ? parseLocalDate(debt.startDate) : parseLocalDate('2026-01-01');
       if (targetDate <= debtStartDate) return 0;
+      if (debt.endDate && targetDate > parseLocalDate(debt.endDate)) return 0;
 
       let curBal = debt.balance;
       let promoEndDate = null;
@@ -1096,8 +1136,14 @@
             promoEndDate.setMonth(promoEndDate.getMonth() + parseInt(d.promoMonths));
           }
 
-          while (cur <= targetDate && curBal > 0) {
+          while (cur <= targetDate) {
             const k = formatLocalDate(cur);
+
+            // Cap debt calculations if explicit End Date is reached
+            if (d.endDate && parseLocalDate(k) > parseLocalDate(d.endDate)) {
+              curBal = 0;
+              break;
+            }
 
             if (d.closingDate && cur.getDate() === parseInt(d.closingDate) && cur > debtStartDate) {
               let activeApr = d.apr;
@@ -1426,9 +1472,18 @@
       const dayBalance = calculateBalanceUpToDate(selectedDateStr);
       document.getElementById('selectedDayBalance').textContent = fmtMoney(dayBalance);
 
+      const hidePaid = document.getElementById('chkHidePastSelectedDay')?.checked || false;
+
       const oneTimes = state.transactions.filter(t => t.date === selectedDateStr && isAccountActive(t.accountId));
       const recurrings = getRecurringForDate(selectedDateStr);
-      const allEvents = [...oneTimes, ...recurrings];
+      let allEvents = [...oneTimes, ...recurrings];
+
+      if (hidePaid) {
+        allEvents = allEvents.filter(t => {
+          const itemKey = t.instanceId || t.id;
+          return !state.paidStatus[itemKey];
+        });
+      }
 
       const dayIncome = allEvents.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
       const dayExpense = allEvents.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
@@ -1476,13 +1531,20 @@
 
     function renderLog() {
       const query = (document.getElementById('logSearchInput')?.value || '').toLowerCase();
+      const hidePast = document.getElementById('chkHidePastLog')?.checked || false;
+      const todayStr = formatLocalDate(new Date());
+
       const list = document.getElementById('fullLogList');
 
-      const filtered = state.transactions.filter(t => 
+      let filtered = state.transactions.filter(t => 
         t.desc.toLowerCase().includes(query) || 
         (t.category && t.category.toLowerCase().includes(query)) ||
         t.amount.toString().includes(query)
       );
+
+      if (hidePast) {
+        filtered = filtered.filter(t => t.date >= todayStr);
+      }
 
       list.innerHTML = filtered.length === 0
         ? `<div class="text-xs text-gray-500 italic p-4 text-center">No matching transactions.</div>`
@@ -1611,7 +1673,7 @@
                       ${utilPct !== null ? `<span class="text-[9px] px-2 py-0.5 rounded-full font-bold ${utilPct > 30 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">${utilPct}% Util</span>` : ''}
                     </div>
                     <div class="text-[10px] text-gray-500 font-mono mt-0.5">
-                      Starts: ${startDateStr} · APR: ${d.apr}%
+                      Starts: ${startDateStr} ${d.endDate ? ` · Ends: ${d.endDate}` : ''} · APR: ${d.apr}%
                       ${limit > 0 ? `<br>Credit Limit: ${fmtMoney(limit)}` : ''}
                       ${d.promoEnabled ? `<br><span class="text-amber-600 font-semibold">Promo: ${promoApr}% ${d.promoEndDate ? `until ${d.promoEndDate}` : `for ${promoMonths} mos`}</span>` : ''}
                       ${d.closingDate ? `<br>Closing Day: ${d.closingDate}` : ''}
@@ -1998,6 +2060,11 @@
       document.getElementById('promoInputsContainer').style.display = isEnabled ? 'block' : 'none';
     }
 
+    function toggleDebtEditScopeUI() {
+      const scope = document.getElementById('debtEditScope').value;
+      document.getElementById('debtEffectiveDateContainer').classList.toggle('hidden', scope !== 'from_date');
+    }
+
     function openDebtModal(id = null) {
       if (id) {
         const d = state.debts.find(x => x.id === id);
@@ -2006,6 +2073,7 @@
         document.getElementById('debtName').value = d.name;
         document.getElementById('debtCreditLimit').value = d.creditLimit || '';
         document.getElementById('debtStartDate').value = d.startDate || formatLocalDate(new Date());
+        document.getElementById('debtEndDate').value = d.endDate || '';
         document.getElementById('debtBalance').value = d.balance;
         document.getElementById('debtApr').value = d.apr;
         document.getElementById('debtMinPayment').value = d.minPayment;
@@ -2017,11 +2085,17 @@
         document.getElementById('debtDueDate').value = d.dueDate || 1;
         document.getElementById('debtAnnualFee').value = d.annualFee || 0;
         document.getElementById('debtIncludeInForecast').checked = d.includeInForecast;
+        
+        document.getElementById('debtEditScopeContainer').classList.remove('hidden');
+        document.getElementById('debtEditScope').value = 'entire';
+        document.getElementById('debtEffectiveDate').value = selectedDateStr;
+        toggleDebtEditScopeUI();
       } else {
         document.getElementById('debtId').value = '';
         document.getElementById('debtName').value = '';
         document.getElementById('debtCreditLimit').value = '';
         document.getElementById('debtStartDate').value = formatLocalDate(new Date());
+        document.getElementById('debtEndDate').value = '';
         document.getElementById('debtBalance').value = '';
         document.getElementById('debtApr').value = '';
         document.getElementById('debtMinPayment').value = '';
@@ -2032,19 +2106,26 @@
         document.getElementById('debtClosingDate').value = '';
         document.getElementById('debtDueDate').value = '1';
         document.getElementById('debtAnnualFee').value = '0';
+
+        document.getElementById('debtEditScopeContainer').classList.add('hidden');
       }
       togglePromoInputs();
       openModal('debtModal');
     }
 
+    // --- DEBT EDIT & SPLIT FROM DATE ACTION ---
     function saveDebt(e) {
       e.preventDefault();
       const id = document.getElementById('debtId').value;
+      const editScope = document.getElementById('debtEditScope')?.value || 'entire';
+      const effectiveDate = document.getElementById('debtEffectiveDate')?.value || selectedDateStr;
+
       const data = {
         id: id || 'd-' + Date.now(),
         name: document.getElementById('debtName').value,
         creditLimit: parseFloat(document.getElementById('debtCreditLimit').value) || 0,
         startDate: document.getElementById('debtStartDate').value,
+        endDate: document.getElementById('debtEndDate').value,
         balance: parseFloat(document.getElementById('debtBalance').value) || 0,
         apr: parseFloat(document.getElementById('debtApr').value) || 0,
         minPayment: parseFloat(document.getElementById('debtMinPayment').value) || 0,
@@ -2060,7 +2141,27 @@
 
       if (id) {
         const idx = state.debts.findIndex(x => x.id === id);
-        if (idx !== -1) state.debts[idx] = data;
+        if (idx !== -1) {
+          if (editScope === 'from_date') {
+            // Cap old debt terms to day before effective date
+            const targetD = parseLocalDate(effectiveDate);
+            const dayBefore = new Date(targetD);
+            dayBefore.setDate(dayBefore.getDate() - 1);
+
+            state.debts[idx].endDate = formatLocalDate(dayBefore);
+
+            // Create new debt phase starting on effective date
+            const newDebtPhase = {
+              ...data,
+              id: 'd-' + Date.now(),
+              startDate: effectiveDate,
+              endDate: ''
+            };
+            state.debts.push(newDebtPhase);
+          } else {
+            state.debts[idx] = data;
+          }
+        }
       } else {
         state.debts.push(data);
       }
