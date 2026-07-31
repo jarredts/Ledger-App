@@ -746,6 +746,7 @@
     function verifyDataIntegrity() {
       if (!state.categories) state.categories = DEMO_STATE.categories;
       if (!state.paidStatus) state.paidStatus = {};
+      if (!state.exceptions) state.exceptions = {};
       if (!state.categories.find(c => c.name.toLowerCase() === 'unassigned')) {
         state.categories.unshift({ id: 'cat-unassigned', name: 'Unassigned', color: '#9CA3AF', icon: 'fa-question' });
       }
@@ -1019,13 +1020,16 @@
         const debtStart = d.startDate ? parseLocalDate(d.startDate) : new Date(0);
 
         if (targetDate >= debtStart) {
+          const excKey = `debt-pay-${d.id}_${targetDateStr}`;
+          const isSkipped = state.exceptions[excKey] && state.exceptions[excKey].skipped;
+
           if (activeForecastMode === 'liquid') {
-            if (d.includeInForecast && d.dueDate && parseInt(d.dueDate) === targetDate.getDate()) {
+            if (d.includeInForecast && d.dueDate && parseInt(d.dueDate) === targetDate.getDate() && !isSkipped) {
               matches.push({ id: `debt-pay-${d.id}`, desc: `${d.name} Payment`, amount: d.minPayment, category: 'Housing', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
             }
           } else {
             if (isAccountActive(debtKey)) {
-              if (d.dueDate && parseInt(d.dueDate) === targetDate.getDate()) {
+              if (d.dueDate && parseInt(d.dueDate) === targetDate.getDate() && !isSkipped) {
                 matches.push({ id: `debt-pay-${d.id}`, desc: `Payment Post (${d.name})`, amount: d.minPayment, category: 'Housing', type: 'income', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
               }
 
@@ -1065,7 +1069,7 @@
       return Math.max(0, curBal * monthlyRate);
     }
 
-    // --- OPTIMIZED FAST CUMULATIVE BALANCE ENGINE ---
+    // --- ACCURATE DYNAMIC DEBT & LIQUID SIMULATOR ---
     function calculateBalanceUpToDate(targetDateStr) {
       if (state.overrides[targetDateStr]) {
         return state.overrides[targetDateStr];
@@ -1082,7 +1086,7 @@
           if (targetDate < debtStartDate) return;
 
           let curBal = d.balance;
-          let mCount = (targetDate.getFullYear() - debtStartDate.getFullYear()) * 12 + (targetDate.getMonth() - debtStartDate.getMonth());
+          let cur = new Date(debtStartDate);
 
           let promoEndDate = null;
           if (d.promoEnabled && d.promoEndDate) {
@@ -1092,27 +1096,37 @@
             promoEndDate.setMonth(promoEndDate.getMonth() + parseInt(d.promoMonths));
           }
 
-          // Optimized Monthly Cycle Calculation
-          for (let m = 0; m < mCount && curBal > 0; m++) {
-            let simD = new Date(debtStartDate);
-            simD.setMonth(simD.getMonth() + m);
+          while (cur <= targetDate && curBal > 0) {
+            const k = formatLocalDate(cur);
 
-            let activeApr = d.apr;
-            if (promoEndDate && simD <= promoEndDate) {
-              activeApr = d.promoApr !== undefined ? parseFloat(d.promoApr) : 0;
+            // 1. Add Closing Interest
+            if (d.closingDate && cur.getDate() === parseInt(d.closingDate) && cur > debtStartDate) {
+              let activeApr = d.apr;
+              if (promoEndDate && cur <= promoEndDate) {
+                activeApr = d.promoApr !== undefined ? parseFloat(d.promoApr) : 0;
+              }
+              const monthlyRate = (activeApr / 100) / 12;
+              curBal += curBal * monthlyRate;
             }
 
-            const monthlyRate = (activeApr / 100) / 12;
-            curBal += curBal * monthlyRate;
-            curBal = Math.max(0, curBal - d.minPayment);
-          }
+            // 2. Subtract Standard Virtual Payment (unless skipped)
+            if (d.dueDate && cur.getDate() === parseInt(d.dueDate)) {
+              const excKey = `debt-pay-${d.id}_${k}`;
+              if (!state.exceptions[excKey] || !state.exceptions[excKey].skipped) {
+                const pmt = Math.min(curBal, d.minPayment);
+                curBal -= pmt;
+              }
+            }
 
-          // Add manual transaction delta
-          const debtTxs = state.transactions.filter(t => t.accountId === `debt-${d.id}` && t.date <= targetDateStr);
-          debtTxs.forEach(t => {
-            if (t.type === 'expense') curBal += t.amount;
-            else if (t.type === 'income') curBal -= t.amount;
-          });
+            // 3. Process Manual Log Transactions for this Debt Account
+            const debtTxs = state.transactions.filter(t => t.accountId === `debt-${d.id}` && t.date === k);
+            debtTxs.forEach(t => {
+              if (t.type === 'expense') curBal += t.amount;
+              else if (t.type === 'income') curBal -= t.amount;
+            });
+
+            cur.setDate(cur.getDate() + 1);
+          }
 
           totalDebt += Math.max(0, curBal);
         });
@@ -1187,37 +1201,30 @@
       }
     }
 
-    // --- OPTIMIZED FAST MILESTONE SCANNER ---
     function checkDebtFreeMilestone() {
       const debtBanner = document.getElementById('debtFreeBanner');
       const debtText = document.getElementById('debtFreeText');
 
       if (activeForecastMode === 'debt') {
-        let maxPayoffMonths = 0;
+        const today = new Date();
+        let cur = new Date(today);
+        const maxScan = new Date(today);
+        maxScan.setFullYear(maxScan.getFullYear() + 10);
 
-        state.debts.forEach(d => {
-          if (!isAccountActive(`debt-${d.id}`)) return;
-
-          let bal = d.balance;
-          let months = 0;
-
-          while (bal > 0 && months < 360) {
-            months++;
-            const monthlyInterest = (d.apr / 100) / 12;
-            bal += bal * monthlyInterest;
-            bal -= d.minPayment;
-            if (months === 1 && d.minPayment <= d.balance * monthlyInterest && d.apr > 0) {
-              months = 999;
-              break;
-            }
+        let debtFreeDate = null;
+        while (cur <= maxScan) {
+          const k = formatLocalDate(cur);
+          const bal = calculateBalanceUpToDate(k);
+          if (bal >= 0) {
+            debtFreeDate = k;
+            break;
           }
-          if (months > maxPayoffMonths) maxPayoffMonths = months;
-        });
+          cur.setDate(cur.getDate() + 1);
+        }
 
-        if (maxPayoffMonths > 0 && maxPayoffMonths < 360) {
-          const targetD = new Date();
-          targetD.setMonth(targetD.getMonth() + maxPayoffMonths);
-          debtText.textContent = `🎉 Positive Forecast Milestone: Selected Debts Projected Paid Off on ${targetD.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}!`;
+        if (debtFreeDate) {
+          const d = parseLocalDate(debtFreeDate);
+          debtText.textContent = `🎉 Positive Forecast Milestone: Selected Debts Projected Paid Off on ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}!`;
           debtBanner.classList.remove('hidden');
           return;
         }
@@ -1920,6 +1927,7 @@
       openModal('occurrenceEditModal');
     }
 
+    // --- RECURRING & VIRTUAL DEBT OCCURRENCE EDIT FIX ---
     function saveOccurrenceEdit() {
       const ruleId = document.getElementById('occRuleId').value;
       const originalDate = document.getElementById('occOriginalDate').value;
@@ -1927,40 +1935,64 @@
       const newAmount = parseFloat(document.getElementById('occNewAmount').value) || 0;
       const scope = document.getElementById('occEditScope').value;
 
-      const rule = state.recurring.find(r => r.id === ruleId);
+      // Handle Virtual Debt Payment Edits
+      if (ruleId.startsWith('debt-pay-')) {
+        const debtId = ruleId.replace('debt-pay-', '');
+        const debt = state.debts.find(d => d.id === debtId);
+        
+        // Skip default virtual payment for that instance
+        const excKey = `debt-pay-${debtId}_${originalDate}`;
+        state.exceptions[excKey] = { skipped: true };
 
-      if (scope === 'single') {
-        state.exceptions[`${ruleId}_${originalDate}`] = { skipped: true };
-        if (rule) {
+        // Save adjusted payment transaction directly into log
+        if (newAmount > 0) {
           state.transactions.push({
             id: 'tx-' + Date.now(),
-            desc: rule.desc + ' (Edited)',
+            desc: (debt ? debt.name : 'Debt Payment') + ' (Custom Payment)',
             amount: newAmount,
-            category: rule.category || 'Unassigned',
-            type: rule.type,
-            accountId: rule.accountId,
-            date: newDate
+            category: 'Housing',
+            type: 'income', // Income type reduces debt balance in Debt Calendar mode
+            accountId: `debt-${debtId}`,
+            date: newDate,
+            isPaid: true
           });
         }
       } else {
-        if (rule) {
-          const newStartD = parseLocalDate(newDate);
-          const endD = new Date(newStartD);
-          endD.setDate(endD.getDate() - 1);
-
-          rule.endType = 'until_date';
-          rule.endDate = formatLocalDate(endD);
-
-          if (newAmount > 0) {
-            const newRule = {
-              ...rule,
-              id: 'rec-' + Date.now(),
-              startDate: newDate,
+        // Standard Liquid Recurring Rules
+        const rule = state.recurring.find(r => r.id === ruleId);
+        if (scope === 'single') {
+          state.exceptions[`${ruleId}_${originalDate}`] = { skipped: true };
+          if (rule) {
+            state.transactions.push({
+              id: 'tx-' + Date.now(),
+              desc: rule.desc + ' (Edited)',
               amount: newAmount,
-              endType: 'never',
-              endDate: null
-            };
-            state.recurring.push(newRule);
+              category: rule.category || 'Unassigned',
+              type: rule.type,
+              accountId: rule.accountId,
+              date: newDate
+            });
+          }
+        } else {
+          if (rule) {
+            const newStartD = parseLocalDate(newDate);
+            const endD = new Date(newStartD);
+            endD.setDate(endD.getDate() - 1);
+
+            rule.endType = 'until_date';
+            rule.endDate = formatLocalDate(endD);
+
+            if (newAmount > 0) {
+              const newRule = {
+                ...rule,
+                id: 'rec-' + Date.now(),
+                startDate: newDate,
+                amount: newAmount,
+                endType: 'never',
+                endDate: null
+              };
+              state.recurring.push(newRule);
+            }
           }
         }
       }
