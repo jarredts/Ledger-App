@@ -138,6 +138,11 @@
           <button onclick="changeMonth(1)" title="Next Month" class="px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold">&rarr;</button>
         </div>
 
+        <label class="flex items-center gap-1.5 text-[11px] text-gray-500 px-1 cursor-pointer">
+          <input type="checkbox" id="chkHidePastMonths" onchange="onHidePastMonthsToggle()" class="w-3 h-3 text-amber-500 rounded">
+          <span>Hide Past Months (stay on current month and forward)</span>
+        </label>
+
         <div class="grid grid-cols-7 gap-1 text-center font-mono text-[10px] text-gray-500 font-bold uppercase tracking-wider">
           <div class="text-red-500 bg-red-50/50 py-0.5 rounded">Sun</div>
           <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div>
@@ -191,6 +196,13 @@
           <input type="checkbox" id="chkHidePastLog" onchange="renderLog()" class="w-3.5 h-3.5 text-amber-500 rounded">
           <span>Hide Past</span>
         </label>
+      </div>
+      <div class="flex items-center justify-end gap-2 -mt-1">
+        <label class="text-[10px] text-gray-500 font-semibold">Sort:</label>
+        <select id="logSortSelect" onchange="renderLog()" class="bg-white border border-gray-300 rounded-lg text-[11px] text-gray-700 py-1 px-2 shadow-sm">
+          <option value="date_desc">Date (Newest First)</option>
+          <option value="date_asc">Date (Oldest First)</option>
+        </select>
       </div>
       <div id="fullLogList" class="space-y-2"></div>
     </section>
@@ -821,7 +833,8 @@
         { id: 'cat-5', name: 'Income', color: '#2563EB', icon: 'fa-wallet' },
         { id: 'cat-6', name: 'Transport', color: '#7C3AED', icon: 'fa-car' },
         { id: 'cat-7', name: 'Entertainment', color: '#DB2777', icon: 'fa-gamepad' },
-        { id: 'cat-8', name: 'Health', color: '#0891B2', icon: 'fa-heart-pulse' }
+        { id: 'cat-8', name: 'Health', color: '#0891B2', icon: 'fa-heart-pulse' },
+        { id: 'cat-9', name: 'Debts', color: '#B91C1C', icon: 'fa-credit-card' }
       ],
       transactions: [
         { id: 'tx-1', desc: 'Starting Balance', amount: 2150.00, category: 'Income', type: 'income', accountId: 'acc-1', date: '2026-08-01', isPaid: true },
@@ -1081,6 +1094,9 @@
       if (!state.categories.find(c => c.name.toLowerCase() === 'unassigned')) {
         state.categories.unshift({ id: 'cat-unassigned', name: 'Unassigned', color: '#9CA3AF', icon: 'fa-question' });
       }
+      if (!state.categories.find(c => c.name.toLowerCase() === 'debts')) {
+        state.categories.push({ id: 'cat-debts', name: 'Debts', color: '#B91C1C', icon: 'fa-credit-card' });
+      }
       if (state.debts) {
         state.debts.forEach(d => {
           if (d.creditLimit === undefined) d.creditLimit = 0;
@@ -1244,9 +1260,34 @@
     }
 
     function changeMonth(delta) {
-      currentMonthDate.setMonth(currentMonthDate.getMonth() + delta);
+      const proposed = new Date(currentMonthDate);
+      proposed.setMonth(proposed.getMonth() + delta);
+
+      if (delta < 0 && document.getElementById('chkHidePastMonths')?.checked) {
+        const today = new Date();
+        const proposedFirst = new Date(proposed.getFullYear(), proposed.getMonth(), 1);
+        const todayFirst = new Date(today.getFullYear(), today.getMonth(), 1);
+        if (proposedFirst < todayFirst) return; // blocked: would go before the current month
+      }
+
+      currentMonthDate = proposed;
       renderCalendar();
       saveViewState();
+    }
+
+    function onHidePastMonthsToggle() {
+      const enabled = document.getElementById('chkHidePastMonths').checked;
+      localStorage.setItem('ledger_hide_past_months', enabled ? '1' : '0');
+      if (enabled) {
+        const today = new Date();
+        const todayFirst = new Date(today.getFullYear(), today.getMonth(), 1);
+        const curFirst = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth(), 1);
+        if (curFirst < todayFirst) {
+          currentMonthDate = new Date();
+          renderCalendar();
+          saveViewState();
+        }
+      }
     }
 
     function jumpToToday() {
@@ -1596,18 +1637,18 @@
 
           if (activeForecastMode === 'liquid') {
             if (!paidOff && d.includeInForecast && d.dueDate && parseInt(d.dueDate) === targetDate.getDate() && !isSkipped) {
-              matches.push({ id: `debt-pay-${d.id}`, desc: `${d.name} Payment${overrideAmt !== undefined ? ' (Override)' : ''}`, amount: paymentAmt, category: 'Housing', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
+              matches.push({ id: `debt-pay-${d.id}`, desc: `${d.name} Payment${overrideAmt !== undefined ? ' (Override)' : ''}`, amount: paymentAmt, category: 'Debts', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
             }
           } else {
             if (isAccountActive(debtKey)) {
               if (!paidOff && d.dueDate && parseInt(d.dueDate) === targetDate.getDate() && !isSkipped) {
-                matches.push({ id: `debt-pay-${d.id}`, desc: `Payment Post (${d.name})${overrideAmt !== undefined ? ' (Override)' : ''}`, amount: paymentAmt, category: 'Housing', type: 'income', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
+                matches.push({ id: `debt-pay-${d.id}`, desc: `Payment Post (${d.name})${overrideAmt !== undefined ? ' (Override)' : ''}`, amount: paymentAmt, category: 'Debts', type: 'income', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
               }
 
               if (!paidOff && d.closingDate && parseInt(d.closingDate) === targetDate.getDate()) {
                 const calculatedInterest = calculateDebtInterestForDate(d, targetDate);
                 if (calculatedInterest > 0) {
-                  matches.push({ id: `debt-int-${d.id}`, desc: `Interest Charge (${d.name})`, amount: calculatedInterest, category: 'Utilities', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-int-${d.id}_${targetDateStr}` });
+                  matches.push({ id: `debt-int-${d.id}`, desc: `Interest Charge (${d.name})`, amount: calculatedInterest, category: 'Debts', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-int-${d.id}_${targetDateStr}` });
                 }
               }
             }
@@ -2158,9 +2199,18 @@
         filtered = filtered.filter(t => t.date >= todayStr);
       }
 
+      const sortMode = document.getElementById('logSortSelect')?.value || 'date_desc';
+      filtered = filtered.slice().sort((a, b) => {
+        if (a.date !== b.date) {
+          return sortMode === 'date_asc' ? (a.date < b.date ? -1 : 1) : (a.date > b.date ? -1 : 1);
+        }
+        // Same date: fall back to insertion order (id contains a timestamp), newest-created last for asc, first for desc
+        return sortMode === 'date_asc' ? (a.id > b.id ? 1 : -1) : (a.id > b.id ? -1 : 1);
+      });
+
       list.innerHTML = filtered.length === 0
         ? `<div class="text-xs text-gray-500 italic p-4 text-center">No matching transactions.</div>`
-        : filtered.slice().reverse().map(t => {
+        : filtered.map(t => {
             const isPaid = !!state.paidStatus[t.id];
             return `
             <div class="flex justify-between items-center p-3 rounded-xl bg-white border border-gray-300 text-xs shadow-sm ${isPaid ? 'opacity-60 bg-emerald-50/40' : ''}">
@@ -3023,6 +3073,9 @@
       applyAutopayCatchup();
       initBudgetFilters();
       restoreViewState();
+      const hidePastPref = localStorage.getItem('ledger_hide_past_months');
+      const hidePastCheckbox = document.getElementById('chkHidePastMonths');
+      if (hidePastCheckbox) hidePastCheckbox.checked = (hidePastPref === '1');
       renderApp();
       initCalendarSwipe();
       initSyncOnBoot();
