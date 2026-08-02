@@ -368,6 +368,25 @@
     </div>
   </div>
 
+  <!-- Debt Payment Override Modal -->
+  <div id="debtPaymentOverrideModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-xl">
+      <div class="flex justify-between items-center">
+        <h3 id="debtOverrideModalTitle" class="font-bold text-base text-gray-900">Override This Payment</h3>
+        <button onclick="closeModal('debtPaymentOverrideModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+      </div>
+      <p class="text-xs text-gray-500">Changes just this one scheduled payment — useful for an extra or payoff amount on a specific date. Future payments go back to the normal amount unless the balance is fully paid off by then.</p>
+      <input id="debtOverrideDebtId" type="hidden">
+      <input id="debtOverrideDate" type="hidden">
+      <input id="debtOverrideAmount" type="number" step="0.01" placeholder="Payment amount for this date ($)" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
+      <div class="flex gap-2">
+        <button type="button" onclick="saveDebtPaymentOverride()" class="flex-1 bg-amber-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-amber-600">Save This Payment</button>
+        <button type="button" onclick="clearDebtPaymentOverride()" class="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-xs border border-red-200 hover:bg-red-100">Reset to Normal</button>
+      </div>
+      <button type="button" onclick="openDebtModalFromOverride()" class="w-full text-center text-xs text-gray-500 hover:text-amber-600 underline pt-1">Edit this debt's permanent settings instead (APR, end date, normal payment amount)</button>
+    </div>
+  </div>
+
   <!-- Transaction Entry & Edit Modal -->
   <div id="transactionModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
     <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto shadow-xl">
@@ -737,7 +756,8 @@
       ],
       overrides: {},
       exceptions: {},
-      paidStatus: {}
+      paidStatus: {},
+      debtPaymentOverrides: {}
     };
 
     const STORAGE_KEY = 'ledger_v6_full_state';
@@ -786,6 +806,7 @@
       if (!state.categories) state.categories = DEMO_STATE.categories;
       if (!state.paidStatus) state.paidStatus = {};
       if (!state.exceptions) state.exceptions = {};
+      if (!state.debtPaymentOverrides) state.debtPaymentOverrides = {};
       if (!state.categories.find(c => c.name.toLowerCase() === 'unassigned')) {
         state.categories.unshift({ id: 'cat-unassigned', name: 'Unassigned', color: '#9CA3AF', icon: 'fa-question' });
       }
@@ -999,60 +1020,87 @@
       }
     }
 
-    // Simulates a debt's balance as of the end of a given date — same math as the
-    // debt-mode balance loop in calculateBalanceUpToDate, extracted so
-    // getRecurringForDate can check whether a debt is already paid off before
-    // generating a scheduled payment/interest event for a later date.
+    // Memoized per-debt balance trajectory. Rebuilding this from scratch for every
+    // calendar day / chart point was the source of the slowdown — this caches each
+    // debt's running balance and only walks forward from the last date it already
+    // computed, so a full month/year render does one pass per debt instead of one
+    // pass per day queried.
+    let _debtBalanceCache = {};
+
+    function resetDebtBalanceCache() {
+      _debtBalanceCache = {};
+    }
+
     function getDebtBalanceAsOf(debt, dateStr) {
       const debtStartDate = debt.startDate ? parseLocalDate(debt.startDate) : parseLocalDate('2026-01-01');
       const targetDate = parseLocalDate(dateStr);
       if (targetDate < debtStartDate) return debt.balance;
 
-      let curBal = debt.balance;
-      let cur = new Date(debtStartDate);
-
-      let promoEndDate = null;
-      if (debt.promoEnabled && debt.promoEndDate) {
-        promoEndDate = parseLocalDate(debt.promoEndDate);
-      } else if (debt.promoMonths && parseInt(debt.promoMonths) > 0) {
-        promoEndDate = new Date(debtStartDate);
-        promoEndDate.setMonth(promoEndDate.getMonth() + parseInt(debt.promoMonths));
+      let entry = _debtBalanceCache[debt.id];
+      if (!entry) {
+        let promoEndDate = null;
+        if (debt.promoEnabled && debt.promoEndDate) {
+          promoEndDate = parseLocalDate(debt.promoEndDate);
+        } else if (debt.promoMonths && parseInt(debt.promoMonths) > 0) {
+          promoEndDate = new Date(debtStartDate);
+          promoEndDate.setMonth(promoEndDate.getMonth() + parseInt(debt.promoMonths));
+        }
+        const seedDate = new Date(debtStartDate);
+        seedDate.setDate(seedDate.getDate() - 1);
+        entry = { map: {}, lastDate: seedDate, lastBal: debt.balance, promoEndDate };
+        _debtBalanceCache[debt.id] = entry;
       }
+
+      // Already computed (or the target is behind where we've walked) — serve from cache.
+      if (targetDate <= entry.lastDate) {
+        const k = formatLocalDate(targetDate);
+        if (entry.map[k] !== undefined) return entry.map[k];
+        return entry.lastBal;
+      }
+
+      const cur = new Date(entry.lastDate);
+      cur.setDate(cur.getDate() + 1);
+      let curBal = entry.lastBal;
+      const promoEndDate = entry.promoEndDate;
 
       while (cur <= targetDate) {
         const k = formatLocalDate(cur);
 
         if (debt.endDate && parseLocalDate(k) > parseLocalDate(debt.endDate)) {
           curBal = 0;
-          break;
-        }
-
-        if (debt.closingDate && cur.getDate() === parseInt(debt.closingDate) && cur > debtStartDate) {
-          let activeApr = debt.apr;
-          if (promoEndDate && cur <= promoEndDate) {
-            activeApr = debt.promoApr !== undefined ? parseFloat(debt.promoApr) : 0;
+        } else {
+          if (debt.closingDate && cur.getDate() === parseInt(debt.closingDate) && cur > debtStartDate) {
+            let activeApr = debt.apr;
+            if (promoEndDate && cur <= promoEndDate) {
+              activeApr = debt.promoApr !== undefined ? parseFloat(debt.promoApr) : 0;
+            }
+            const monthlyRate = (activeApr / 100) / 12;
+            curBal += curBal * monthlyRate;
           }
-          const monthlyRate = (activeApr / 100) / 12;
-          curBal += curBal * monthlyRate;
-        }
 
-        if (debt.dueDate && cur.getDate() === parseInt(debt.dueDate)) {
-          const excKey = `debt-pay-${debt.id}_${k}`;
-          if (!state.exceptions[excKey] || !state.exceptions[excKey].skipped) {
-            const pmt = Math.min(curBal, debt.minPayment);
-            curBal -= pmt;
+          if (debt.dueDate && cur.getDate() === parseInt(debt.dueDate)) {
+            const excKey = `debt-pay-${debt.id}_${k}`;
+            if (!state.exceptions[excKey] || !state.exceptions[excKey].skipped) {
+              const overrideAmt = state.debtPaymentOverrides[excKey];
+              const scheduledAmt = (overrideAmt !== undefined) ? overrideAmt : debt.minPayment;
+              const pmt = Math.min(curBal, scheduledAmt);
+              curBal -= pmt;
+            }
           }
+
+          const debtTxs = state.transactions.filter(t => t.accountId === `debt-${debt.id}` && t.date === k);
+          debtTxs.forEach(t => {
+            if (t.type === 'expense') curBal += t.amount;
+            else if (t.type === 'income') curBal -= t.amount;
+          });
         }
 
-        const debtTxs = state.transactions.filter(t => t.accountId === `debt-${debt.id}` && t.date === k);
-        debtTxs.forEach(t => {
-          if (t.type === 'expense') curBal += t.amount;
-          else if (t.type === 'income') curBal -= t.amount;
-        });
-
+        entry.map[k] = curBal;
         cur.setDate(cur.getDate() + 1);
       }
 
+      entry.lastDate = new Date(targetDate);
+      entry.lastBal = curBal;
       return curBal;
     }
 
@@ -1136,15 +1184,17 @@
           const excKey = `debt-pay-${d.id}_${targetDateStr}`;
           const isSkipped = state.exceptions[excKey] && state.exceptions[excKey].skipped;
           const paidOff = isDebtPaidOffBefore(d, targetDate);
+          const overrideAmt = state.debtPaymentOverrides[excKey];
+          const paymentAmt = (overrideAmt !== undefined) ? overrideAmt : d.minPayment;
 
           if (activeForecastMode === 'liquid') {
             if (!paidOff && d.includeInForecast && d.dueDate && parseInt(d.dueDate) === targetDate.getDate() && !isSkipped) {
-              matches.push({ id: `debt-pay-${d.id}`, desc: `${d.name} Payment`, amount: d.minPayment, category: 'Housing', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
+              matches.push({ id: `debt-pay-${d.id}`, desc: `${d.name} Payment${overrideAmt !== undefined ? ' (Override)' : ''}`, amount: paymentAmt, category: 'Housing', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
             }
           } else {
             if (isAccountActive(debtKey)) {
               if (!paidOff && d.dueDate && parseInt(d.dueDate) === targetDate.getDate() && !isSkipped) {
-                matches.push({ id: `debt-pay-${d.id}`, desc: `Payment Post (${d.name})`, amount: d.minPayment, category: 'Housing', type: 'income', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
+                matches.push({ id: `debt-pay-${d.id}`, desc: `Payment Post (${d.name})${overrideAmt !== undefined ? ' (Override)' : ''}`, amount: paymentAmt, category: 'Housing', type: 'income', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
               }
 
               if (!paidOff && d.closingDate && parseInt(d.closingDate) === targetDate.getDate()) {
@@ -1199,52 +1249,7 @@
           const debtStartDate = d.startDate ? parseLocalDate(d.startDate) : parseLocalDate('2026-01-01');
           if (targetDate < debtStartDate) return;
 
-          let curBal = d.balance;
-          let cur = new Date(debtStartDate);
-
-          let promoEndDate = null;
-          if (d.promoEnabled && d.promoEndDate) {
-            promoEndDate = parseLocalDate(d.promoEndDate);
-          } else if (d.promoMonths && parseInt(d.promoMonths) > 0) {
-            promoEndDate = new Date(debtStartDate);
-            promoEndDate.setMonth(promoEndDate.getMonth() + parseInt(d.promoMonths));
-          }
-
-          while (cur <= targetDate) {
-            const k = formatLocalDate(cur);
-
-            // Cap debt calculations if explicit End Date is reached
-            if (d.endDate && parseLocalDate(k) > parseLocalDate(d.endDate)) {
-              curBal = 0;
-              break;
-            }
-
-            if (d.closingDate && cur.getDate() === parseInt(d.closingDate) && cur > debtStartDate) {
-              let activeApr = d.apr;
-              if (promoEndDate && cur <= promoEndDate) {
-                activeApr = d.promoApr !== undefined ? parseFloat(d.promoApr) : 0;
-              }
-              const monthlyRate = (activeApr / 100) / 12;
-              curBal += curBal * monthlyRate;
-            }
-
-            if (d.dueDate && cur.getDate() === parseInt(d.dueDate)) {
-              const excKey = `debt-pay-${d.id}_${k}`;
-              if (!state.exceptions[excKey] || !state.exceptions[excKey].skipped) {
-                const pmt = Math.min(curBal, d.minPayment);
-                curBal -= pmt;
-              }
-            }
-
-            const debtTxs = state.transactions.filter(t => t.accountId === `debt-${d.id}` && t.date === k);
-            debtTxs.forEach(t => {
-              if (t.type === 'expense') curBal += t.amount;
-              else if (t.type === 'income') curBal -= t.amount;
-            });
-
-            cur.setDate(cur.getDate() + 1);
-          }
-
+          const curBal = getDebtBalanceAsOf(d, targetDateStr);
           totalDebt += Math.max(0, curBal);
         });
 
@@ -1350,6 +1355,7 @@
     }
 
     function renderApp() {
+      resetDebtBalanceCache();
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + Math.round(forecastYears * 12));
       const netWorth = calculateBalanceUpToDate(formatLocalDate(endDate));
@@ -1593,7 +1599,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                   ${t.id.startsWith('debt-pay-') || t.id.startsWith('debt-int-')
-                    ? `<button onclick="openDebtModal('${t.id.replace('debt-int-', '').replace('debt-pay-', '')}')" title="Edit this debt's payment, APR, or end date" class="text-amber-600 hover:text-amber-700 text-xs px-1"><i class="fa-solid fa-pen"></i></button>`
+                    ? `<button onclick="openDebtPaymentOverride('${t.id.replace('debt-int-', '').replace('debt-pay-', '')}', '${selectedDateStr}')" title="Change this one payment, or edit the debt's permanent settings" class="text-amber-600 hover:text-amber-700 text-xs px-1"><i class="fa-solid fa-pen"></i></button>`
                     : t.isRecurring 
                       ? `<button onclick="openOccurrenceEdit('${t.id}', '${selectedDateStr}')" class="text-amber-600 hover:text-amber-700 text-xs px-1"><i class="fa-solid fa-pen"></i></button>`
                       : `<button onclick="openTransactionModal('${t.id}')" class="text-gray-400 hover:text-amber-600 text-xs px-1"><i class="fa-solid fa-pen"></i></button>
@@ -2118,6 +2124,44 @@
     function toggleDebtEditScopeUI() {
       const scope = document.getElementById('debtEditScope').value;
       document.getElementById('debtEffectiveDateContainer').classList.toggle('hidden', scope !== 'from_date');
+    }
+
+    function openDebtPaymentOverride(debtId, dateStr) {
+      const debt = state.debts.find(d => d.id === debtId);
+      if (!debt) return;
+      const excKey = `debt-pay-${debtId}_${dateStr}`;
+      const existing = state.debtPaymentOverrides[excKey];
+      document.getElementById('debtOverrideDebtId').value = debtId;
+      document.getElementById('debtOverrideDate').value = dateStr;
+      document.getElementById('debtOverrideModalTitle').textContent = `Override Payment — ${debt.name}`;
+      document.getElementById('debtOverrideAmount').value = existing !== undefined ? existing : debt.minPayment;
+      document.getElementById('debtPaymentOverrideModal').classList.remove('hidden');
+    }
+
+    function saveDebtPaymentOverride() {
+      const debtId = document.getElementById('debtOverrideDebtId').value;
+      const dateStr = document.getElementById('debtOverrideDate').value;
+      const amount = parseFloat(document.getElementById('debtOverrideAmount').value);
+      if (isNaN(amount) || amount < 0) { alert('Enter a valid payment amount.'); return; }
+      const excKey = `debt-pay-${debtId}_${dateStr}`;
+      state.debtPaymentOverrides[excKey] = amount;
+      closeModal('debtPaymentOverrideModal');
+      saveState();
+    }
+
+    function clearDebtPaymentOverride() {
+      const debtId = document.getElementById('debtOverrideDebtId').value;
+      const dateStr = document.getElementById('debtOverrideDate').value;
+      const excKey = `debt-pay-${debtId}_${dateStr}`;
+      delete state.debtPaymentOverrides[excKey];
+      closeModal('debtPaymentOverrideModal');
+      saveState();
+    }
+
+    function openDebtModalFromOverride() {
+      const debtId = document.getElementById('debtOverrideDebtId').value;
+      closeModal('debtPaymentOverrideModal');
+      openDebtModal(debtId);
     }
 
     function openDebtModal(id = null) {
