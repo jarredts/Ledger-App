@@ -150,6 +150,7 @@
                 <div id="selectedDayBalance" class="text-lg font-mono font-bold text-gray-900">$0.00</div>
                 <button onclick="openModal('overrideModal')" class="text-[10px] text-amber-600 font-medium underline hover:text-amber-700"><i class="fa-solid fa-pen-to-square"></i> Override</button>
               </div>
+              <div id="selectedDayUtilization" class="text-[11px] font-mono font-semibold hidden"></div>
               <div id="selectedDayNetChange" class="text-[11px] font-mono font-bold mt-1"></div>
             </div>
             <button onclick="openTransactionModal()" class="bg-gray-100 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-700 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-colors">
@@ -1872,6 +1873,24 @@
       
       const dayBalance = calculateBalanceUpToDate(selectedDateStr);
       document.getElementById('selectedDayBalance').textContent = fmtMoney(dayBalance);
+
+      const utilEl = document.getElementById('selectedDayUtilization');
+      if (activeForecastMode === 'debt') {
+        const revolvingDebts = state.debts.filter(d => isAccountActive(`debt-${d.id}`) && parseFloat(d.creditLimit || 0) > 0);
+        const limitTotal = revolvingDebts.reduce((s, d) => s + parseFloat(d.creditLimit || 0), 0);
+        if (limitTotal > 0) {
+          const balTotal = revolvingDebts.reduce((s, d) => s + Math.max(0, getDebtBalanceAsOf(d, selectedDateStr)), 0);
+          const utilPct = Math.min(999, (balTotal / limitTotal) * 100);
+          const color = utilPct >= 75 ? 'text-red-600' : utilPct >= 30 ? 'text-amber-600' : 'text-emerald-600';
+          utilEl.className = `text-[11px] font-mono font-semibold ${color}`;
+          utilEl.textContent = `Forecasted Utilization: ${utilPct.toFixed(1)}% of ${fmtMoney(limitTotal)} limit`;
+          utilEl.classList.remove('hidden');
+        } else {
+          utilEl.classList.add('hidden');
+        }
+      } else {
+        utilEl.classList.add('hidden');
+      }
 
       const hidePaid = document.getElementById('chkHidePastSelectedDay')?.checked || false;
 
