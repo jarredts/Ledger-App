@@ -268,6 +268,8 @@
         </div>
       </div>
 
+      <div id="budgetPeriodTotals" class="grid grid-cols-3 gap-2"></div>
+
       <div id="categoriesList" class="flex flex-wrap gap-2 p-3 bg-white rounded-xl border border-gray-300 shadow-sm"></div>
       <div id="budgetsList" class="space-y-3"></div>
     </section>
@@ -745,6 +747,11 @@
         <div>
           <label class="block text-[10px] font-bold text-gray-500 mb-0.5">ANNUAL FEE ($)</label>
           <input id="debtAnnualFee" type="number" step="0.01" placeholder="Annual Fee ($)" value="0" class="bg-gray-50 border border-gray-300 rounded-lg p-2 w-full text-gray-800">
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-bold text-gray-500 mb-0.5">CATEGORY (for payments & interest on Log/Budgets)</label>
+          <select id="debtCategory" class="bg-gray-50 border border-gray-300 rounded-lg p-2 w-full text-gray-800"></select>
         </div>
 
         <div class="flex items-center gap-2 pt-2">
@@ -1637,18 +1644,18 @@
 
           if (activeForecastMode === 'liquid') {
             if (!paidOff && d.includeInForecast && d.dueDate && parseInt(d.dueDate) === targetDate.getDate() && !isSkipped) {
-              matches.push({ id: `debt-pay-${d.id}`, desc: `${d.name} Payment${overrideAmt !== undefined ? ' (Override)' : ''}`, amount: paymentAmt, category: 'Debts', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
+              matches.push({ id: `debt-pay-${d.id}`, desc: `${d.name} Payment${overrideAmt !== undefined ? ' (Override)' : ''}`, amount: paymentAmt, category: d.category || 'Debts', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
             }
           } else {
             if (isAccountActive(debtKey)) {
               if (!paidOff && d.dueDate && parseInt(d.dueDate) === targetDate.getDate() && !isSkipped) {
-                matches.push({ id: `debt-pay-${d.id}`, desc: `Payment Post (${d.name})${overrideAmt !== undefined ? ' (Override)' : ''}`, amount: paymentAmt, category: 'Debts', type: 'income', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
+                matches.push({ id: `debt-pay-${d.id}`, desc: `Payment Post (${d.name})${overrideAmt !== undefined ? ' (Override)' : ''}`, amount: paymentAmt, category: d.category || 'Debts', type: 'income', isRecurring: true, date: targetDateStr, instanceId: `debt-pay-${d.id}_${targetDateStr}` });
               }
 
               if (!paidOff && d.closingDate && parseInt(d.closingDate) === targetDate.getDate()) {
                 const calculatedInterest = calculateDebtInterestForDate(d, targetDate);
                 if (calculatedInterest > 0) {
-                  matches.push({ id: `debt-int-${d.id}`, desc: `Interest Charge (${d.name})`, amount: calculatedInterest, category: 'Debts', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-int-${d.id}_${targetDateStr}` });
+                  matches.push({ id: `debt-int-${d.id}`, desc: `Interest Charge (${d.name})`, amount: calculatedInterest, category: d.category || 'Debts', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-int-${d.id}_${targetDateStr}` });
                 }
               }
             }
@@ -1846,6 +1853,7 @@
       document.getElementById('txCategory').innerHTML = catOptions;
       document.getElementById('budCategory').innerHTML = catOptions;
       document.getElementById('recCategory').innerHTML = catOptions;
+      document.getElementById('debtCategory').innerHTML = catOptions;
 
       checkQuarterlyNegativeBalance();
       checkDebtFreeMilestone();
@@ -2399,12 +2407,6 @@
         </button>
       `).join('');
 
-      const list = document.getElementById('budgetsList');
-      if (state.budgets.length === 0) {
-        list.innerHTML = `<div class="text-xs text-gray-500 italic p-4 text-center">No budgets created yet.</div>`;
-        return;
-      }
-
       const filterMode = document.getElementById('budgetFilterMode')?.value || 'month';
       let startDateStr = null;
       let endDateStr = null;
@@ -2420,6 +2422,54 @@
       } else if (filterMode === 'range') {
         startDateStr = document.getElementById('budgetFilterStart')?.value || null;
         endDateStr = document.getElementById('budgetFilterEnd')?.value || null;
+      }
+
+      // --- Period income vs. expense totals (all categories, not just budgeted ones) ---
+      const totalsEl = document.getElementById('budgetPeriodTotals');
+      if (filterMode === 'all' || !startDateStr || !endDateStr) {
+        totalsEl.innerHTML = '';
+      } else {
+        let totalIncome = 0;
+        let totalExpense = 0;
+
+        state.transactions.forEach(t => {
+          if (t.date < startDateStr || t.date > endDateStr) return;
+          if (t.type === 'income') totalIncome += t.amount;
+          else if (t.type === 'expense') totalExpense += t.amount;
+        });
+
+        let cur = parseLocalDate(startDateStr);
+        const endD = parseLocalDate(endDateStr);
+        while (cur <= endD) {
+          const k = formatLocalDate(cur);
+          getRecurringForDate(k).forEach(r => {
+            if (r.type === 'income') totalIncome += r.amount;
+            else if (r.type === 'expense') totalExpense += r.amount;
+          });
+          cur.setDate(cur.getDate() + 1);
+        }
+
+        const net = totalIncome - totalExpense;
+        totalsEl.innerHTML = `
+          <div class="p-3 rounded-xl bg-white border border-gray-300 shadow-sm text-center">
+            <div class="text-[9px] font-bold text-gray-500 uppercase">Income</div>
+            <div class="font-mono font-bold text-sm text-emerald-700">${fmtMoney(totalIncome)}</div>
+          </div>
+          <div class="p-3 rounded-xl bg-white border border-gray-300 shadow-sm text-center">
+            <div class="text-[9px] font-bold text-gray-500 uppercase">Expenses</div>
+            <div class="font-mono font-bold text-sm text-red-600">${fmtMoney(totalExpense)}</div>
+          </div>
+          <div class="p-3 rounded-xl bg-white border border-gray-300 shadow-sm text-center">
+            <div class="text-[9px] font-bold text-gray-500 uppercase">Net</div>
+            <div class="font-mono font-bold text-sm ${net >= 0 ? 'text-emerald-700' : 'text-red-600'}">${fmtMoney(net)}</div>
+          </div>
+        `;
+      }
+
+      const list = document.getElementById('budgetsList');
+      if (state.budgets.length === 0) {
+        list.innerHTML = `<div class="text-xs text-gray-500 italic p-4 text-center">No budgets created yet.</div>`;
+        return;
       }
 
       list.innerHTML = state.budgets.map(b => {
@@ -2795,6 +2845,7 @@
         document.getElementById('debtClosingDate').value = d.closingDate || '';
         document.getElementById('debtDueDate').value = d.dueDate || 1;
         document.getElementById('debtAnnualFee').value = d.annualFee || 0;
+        document.getElementById('debtCategory').value = d.category || 'Debts';
         document.getElementById('debtIncludeInForecast').checked = d.includeInForecast;
         document.getElementById('debtAutopay').checked = !!d.autopay;
         
@@ -2818,6 +2869,7 @@
         document.getElementById('debtClosingDate').value = '';
         document.getElementById('debtDueDate').value = '1';
         document.getElementById('debtAnnualFee').value = '0';
+        document.getElementById('debtCategory').value = 'Debts';
         document.getElementById('debtAutopay').checked = false;
 
         document.getElementById('debtEditScopeContainer').classList.add('hidden');
@@ -2849,6 +2901,7 @@
         closingDate: parseInt(document.getElementById('debtClosingDate').value) || null,
         dueDate: parseInt(document.getElementById('debtDueDate').value) || 1,
         annualFee: parseFloat(document.getElementById('debtAnnualFee').value) || 0,
+        category: document.getElementById('debtCategory').value || 'Debts',
         includeInForecast: document.getElementById('debtIncludeInForecast').checked,
         autopay: document.getElementById('debtAutopay').checked
       };
