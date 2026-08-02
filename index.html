@@ -29,6 +29,9 @@
     }
   </script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Optional: only used if someone enables Cloud Sync in Settings with their own Firebase project. Harmless if unused. -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body { 
@@ -323,6 +326,22 @@
           <input type="file" id="importFileInput" onchange="importDataJSON(event)" accept=".json" class="w-full text-xs text-gray-600 bg-gray-100 rounded-lg p-2 border border-gray-300">
         </div>
         <hr class="border-gray-200">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="font-semibold text-gray-700">Cloud Sync (optional)</label>
+            <span id="syncEnabledBadge" class="hidden text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold uppercase">Enabled</span>
+          </div>
+          <p class="text-[11px] text-gray-500 mb-2">Off by default and never shared — this only works if you set up your own free Firebase project and paste its config below. Nothing here is sent anywhere unless you fill this in. <button type="button" onclick="closeModal('settingsModal'); openModal('guideModal')" class="underline text-amber-600">See the guide</button> for setup steps.</p>
+          <textarea id="syncConfigInput" placeholder='Paste your Firebase config here, e.g. { "apiKey": "...", "authDomain": "...", "projectId": "...", ... }' class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-[11px] font-mono text-gray-800 h-20"></textarea>
+          <input id="syncCodeInput" type="text" placeholder="Your private sync code (same on every device)" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800 mt-2">
+          <div class="flex gap-2 mt-2">
+            <button onclick="enableCloudSync()" class="flex-1 bg-emerald-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-emerald-600">Enable Sync</button>
+            <button onclick="disableCloudSync()" class="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs border border-gray-300 hover:bg-gray-200">Disable</button>
+            <button onclick="manualSyncNow()" class="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs border border-gray-300 hover:bg-gray-200" title="Push/pull now"><i class="fa-solid fa-arrows-rotate"></i></button>
+          </div>
+          <div id="syncStatusLine" class="text-[10px] text-gray-400 mt-1"></div>
+        </div>
+        <hr class="border-gray-200">
         <button onclick="resetAppToDemo()" class="w-full bg-amber-50 text-amber-700 border border-amber-200 py-2 rounded-xl font-semibold hover:bg-amber-100">
           Reload Anonymous Demo Data
         </button>
@@ -360,6 +379,7 @@
         <div>
           <div class="font-bold text-gray-900 mb-1">Marking things paid</div>
           <p>Every transaction — recurring or one-off, in the day view or the Log tab — has a checkbox to mark it <b>Paid/Cleared</b>. This is just for your own tracking; it doesn't change the forecast math, so it's safe to check things off early or late without throwing off future balances.</p>
+          <p class="mt-1">For bills or income you know happen automatically (direct deposit, autopay), check <b>Autopay</b> when adding or editing that recurring rule — it'll mark each occurrence Paid on its own once the date passes, so you're not manually checking off the same thing every cycle.</p>
         </div>
 
         <div>
@@ -519,6 +539,11 @@
           <option value="income">Income (+)</option>
         </select>
         <select id="recCategory" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
+
+        <label class="flex items-center gap-2 cursor-pointer bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+          <input type="checkbox" id="recAutopay" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
+          <span class="text-xs font-semibold text-gray-700">Autopay — mark each occurrence Paid automatically once its date passes</span>
+        </label>
         
         <div class="space-y-2">
           <label class="text-[10px] text-gray-500 font-bold block">RECURRENCE PATTERN</label>
@@ -785,8 +810,8 @@
         { id: 'tx-5', desc: 'Extra Payment - Store Card', amount: 85.00, category: 'Housing', type: 'income', accountId: 'debt-d-4', date: '2026-08-04', isPaid: true }
       ],
       recurring: [
-        { id: 'rec-1', desc: 'Paycheck', amount: 2100.00, type: 'income', category: 'Income', mode: 'interval', count: 2, unit: 'week', startDate: '2026-08-01', endType: 'never', accountId: 'acc-1', paused: false },
-        { id: 'rec-2', desc: 'Rent', amount: 1450.00, type: 'expense', category: 'Housing', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-01', endType: 'never', accountId: 'acc-1', paused: false },
+        { id: 'rec-1', desc: 'Paycheck', amount: 2100.00, type: 'income', category: 'Income', mode: 'interval', count: 2, unit: 'week', startDate: '2026-08-01', endType: 'never', accountId: 'acc-1', autopay: true, paused: false },
+        { id: 'rec-2', desc: 'Rent', amount: 1450.00, type: 'expense', category: 'Housing', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-01', endType: 'never', accountId: 'acc-1', autopay: true, paused: false },
         { id: 'rec-3', desc: 'Electric Utility', amount: 145.00, type: 'expense', category: 'Utilities', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-05', endType: 'never', accountId: 'acc-1', paused: false },
         { id: 'rec-4', desc: 'Internet', amount: 70.00, type: 'expense', category: 'Utilities', mode: 'interval', count: 1, unit: 'month', startDate: '2026-08-07', endType: 'never', accountId: 'acc-1', paused: false },
         { id: 'rec-5', desc: 'Groceries', amount: 120.00, type: 'expense', category: 'Groceries', mode: 'interval', count: 1, unit: 'week', startDate: '2026-08-02', endType: 'never', accountId: 'acc-1', paused: false },
@@ -849,6 +874,7 @@
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         setSyncStatus('ok');
+        if (syncConfig) pushToCloud();
       } catch (e) {
         console.error('Save failed', e);
         setSyncStatus('error');
@@ -861,6 +887,155 @@
         if (raw) state = JSON.parse(raw);
       } catch (e) {
         // Fallback
+      }
+    }
+
+    // --- CLOUD SYNC (fully optional, bring-your-own Firebase project) ---
+    // Nothing here is committed to source or shared between users. The config
+    // and sync code are only ever stored in this device's localStorage, entered
+    // by hand in Settings. Without that config, none of this code does anything.
+    const SYNC_CONFIG_KEY = 'ledger_sync_config';
+    let syncConfig = null;
+    let firebaseApp = null;
+    let firestoreDb = null;
+
+    function loadSyncConfigFromStorage() {
+      try {
+        const raw = localStorage.getItem(SYNC_CONFIG_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function applySyncConfig(cfg) {
+      syncConfig = cfg;
+      try {
+        if (typeof firebase === 'undefined') {
+          setSyncLine('Firebase library did not load — check your connection.');
+          return false;
+        }
+        firebaseApp = firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(cfg.fbConfig);
+        firestoreDb = firebase.firestore();
+        return true;
+      } catch (e) {
+        console.error('Firebase init failed', e);
+        setSyncLine('Could not connect — check the config you pasted.');
+        return false;
+      }
+    }
+
+    function setSyncLine(msg) {
+      const el = document.getElementById('syncStatusLine');
+      if (el) el.textContent = msg;
+    }
+
+    function refreshSyncUI() {
+      const badge = document.getElementById('syncEnabledBadge');
+      const configInput = document.getElementById('syncConfigInput');
+      const codeInput = document.getElementById('syncCodeInput');
+      if (!badge) return;
+      if (syncConfig) {
+        badge.classList.remove('hidden');
+        if (configInput) configInput.value = JSON.stringify(syncConfig.fbConfig, null, 2);
+        if (codeInput) codeInput.value = syncConfig.syncCode;
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    async function enableCloudSync() {
+      const rawConfig = document.getElementById('syncConfigInput').value.trim();
+      const syncCode = document.getElementById('syncCodeInput').value.trim();
+      if (!syncCode || syncCode.length < 8) {
+        alert('Use a longer, private sync code (at least 8 characters) — treat it like a password.');
+        return;
+      }
+      let fbConfig;
+      try {
+        fbConfig = JSON.parse(rawConfig);
+      } catch (e) {
+        alert('That doesn\'t look like valid JSON. Paste the whole config object from Firebase, including the curly braces.');
+        return;
+      }
+
+      const cfg = { fbConfig, syncCode };
+      if (!applySyncConfig(cfg)) return;
+
+      localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(cfg));
+      setSyncLine('Connecting...');
+
+      try {
+        const doc = await firestoreDb.collection('ledgers').doc(syncCode).get();
+        if (doc.exists && doc.data().payload) {
+          const useRemote = confirm('Found existing synced data under this code. Load it? (Cancel keeps what\'s on this device and overwrites the cloud copy instead.)');
+          if (useRemote) {
+            state = JSON.parse(doc.data().payload);
+            verifyDataIntegrity();
+            renderApp();
+          } else {
+            await pushToCloud();
+          }
+        } else {
+          await pushToCloud();
+        }
+        setSyncLine('Synced just now.');
+      } catch (e) {
+        console.error('Initial sync failed', e);
+        setSyncLine('Connected, but the first sync failed — check your Firestore security rules.');
+      }
+
+      refreshSyncUI();
+    }
+
+    function disableCloudSync() {
+      localStorage.removeItem(SYNC_CONFIG_KEY);
+      syncConfig = null;
+      firestoreDb = null;
+      setSyncLine('Sync disabled on this device. Your data stays here locally.');
+      refreshSyncUI();
+    }
+
+    async function pushToCloud() {
+      if (!syncConfig || !firestoreDb) return;
+      try {
+        await firestoreDb.collection('ledgers').doc(syncConfig.syncCode).set({
+          payload: JSON.stringify(state),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        setSyncLine('Synced ' + new Date().toLocaleTimeString());
+      } catch (e) {
+        console.error('Push failed', e);
+        setSyncLine('Sync failed — will retry on next change.');
+      }
+    }
+
+    async function pullFromCloud() {
+      if (!syncConfig || !firestoreDb) return;
+      try {
+        const doc = await firestoreDb.collection('ledgers').doc(syncConfig.syncCode).get();
+        if (doc.exists && doc.data().payload) {
+          state = JSON.parse(doc.data().payload);
+          verifyDataIntegrity();
+          renderApp();
+        }
+      } catch (e) {
+        console.error('Pull failed', e);
+        setSyncLine('Could not reach the cloud copy — showing local data.');
+      }
+    }
+
+    function manualSyncNow() {
+      if (!syncConfig) { alert('Sync isn\'t enabled on this device yet.'); return; }
+      pushToCloud();
+    }
+
+    function initSyncOnBoot() {
+      const cfg = loadSyncConfigFromStorage();
+      if (cfg) {
+        applySyncConfig(cfg);
+        refreshSyncUI();
+        pullFromCloud();
       }
     }
 
@@ -1666,6 +1841,26 @@
       renderCalendar();
     }
 
+    function applyAutopayCatchup() {
+      const todayStr = formatLocalDate(new Date());
+      const today = parseLocalDate(todayStr);
+
+      state.recurring.forEach(rule => {
+        if (!rule.autopay || rule.paused || !rule.startDate) return;
+        const cur = new Date(parseLocalDate(rule.startDate));
+        while (cur <= today) {
+          const k = formatLocalDate(cur);
+          const key = `${rule.id}_${k}`;
+          const isSkipped = state.exceptions[key] && state.exceptions[key].skipped;
+          if (!isSkipped && state.paidStatus[key] === undefined) {
+            const dayMatches = getRecurringForDate(k).some(m => m.instanceId === key);
+            if (dayMatches) state.paidStatus[key] = true;
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+      });
+    }
+
     function togglePaid(identifier) {
       state.paidStatus[identifier] = !state.paidStatus[identifier];
       saveState();
@@ -1818,6 +2013,7 @@
                       <i class="fa-solid fa-wallet text-[8px] mr-0.5"></i> ${accName}
                     </span>
                     ${r.paused ? '<span class="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">PAUSED</span>' : ''}
+                    ${r.autopay ? '<span class="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">AUTOPAY</span>' : ''}
                   </div>
                   <div class="text-[10px] text-gray-500 font-mono mt-0.5">
                     ${r.mode === 'weekday' ? `Nth Weekday (${r.nth} day ${r.dayOfWeek})` : `Every ${r.count} ${r.unit}(s)`} · Starts ${r.startDate}
@@ -2121,6 +2317,7 @@
         document.getElementById('recUnit').value = r.unit || 'week';
         document.getElementById('recStartDate').value = r.startDate;
         document.getElementById('recAccount').value = r.accountId;
+        document.getElementById('recAutopay').checked = !!r.autopay;
         document.getElementById('recModalTitle').textContent = 'Edit Recurring Rule';
       } else {
         document.getElementById('recId').value = '';
@@ -2128,6 +2325,7 @@
         document.getElementById('recAmount').value = '';
         document.getElementById('recCategory').value = 'Unassigned';
         document.getElementById('recStartDate').value = selectedDateStr;
+        document.getElementById('recAutopay').checked = false;
         document.getElementById('recModalTitle').textContent = 'Add Recurring Rule';
       }
       toggleRecModeUI();
@@ -2165,6 +2363,7 @@
         endDate: document.getElementById('recEndDate').value,
         maxOccurrences: parseInt(document.getElementById('recMaxOccurrences').value) || null,
         accountId: document.getElementById('recAccount').value,
+        autopay: document.getElementById('recAutopay').checked,
         paused: false
       };
 
@@ -2176,6 +2375,7 @@
       }
 
       closeModal('recurringModal');
+      applyAutopayCatchup();
       saveState();
     }
 
@@ -2497,8 +2697,10 @@
     window.onload = async function() {
       await loadState();
       verifyDataIntegrity();
+      applyAutopayCatchup();
       initBudgetFilters();
       renderApp();
+      initSyncOnBoot();
     };
 
     if ('serviceWorker' in navigator) {
