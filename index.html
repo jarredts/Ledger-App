@@ -135,7 +135,12 @@
             </button>
           </div>
           <div id="currentMonthLabel" class="font-bold text-gray-900 text-sm"></div>
-          <button onclick="changeMonth(1)" title="Next Month" class="px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold">&rarr;</button>
+          <div class="flex items-center gap-1.5">
+            <button onclick="jumpToSpecificDate()" title="Jump to a Specific Date" class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs shadow-sm transition-colors">
+              <i class="fa-solid fa-calendar-days"></i>
+            </button>
+            <button onclick="changeMonth(1)" title="Next Month" class="px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold">&rarr;</button>
+          </div>
         </div>
 
         <label class="flex items-center gap-1.5 text-[11px] text-gray-500 px-1 cursor-pointer">
@@ -197,12 +202,23 @@
           <span>Hide Past</span>
         </label>
       </div>
-      <div class="flex items-center justify-end gap-2 -mt-1">
-        <label class="text-[10px] text-gray-500 font-semibold">Sort:</label>
-        <select id="logSortSelect" onchange="renderLog()" class="bg-white border border-gray-300 rounded-lg text-[11px] text-gray-700 py-1 px-2 shadow-sm">
-          <option value="date_desc">Date (Newest First)</option>
-          <option value="date_asc">Date (Oldest First)</option>
-        </select>
+      <div class="flex items-center justify-between gap-2 -mt-1">
+        <div class="flex items-center gap-1.5">
+          <label class="text-[10px] text-gray-500 font-semibold">Show:</label>
+          <select id="logHistoryWindow" onchange="renderLog(); saveViewState();" class="bg-white border border-gray-300 rounded-lg text-[11px] text-gray-700 py-1 px-2 shadow-sm">
+            <option value="3">Last 3 Months</option>
+            <option value="6">Last 6 Months</option>
+            <option value="12">Last 12 Months</option>
+            <option value="all">All Time</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <label class="text-[10px] text-gray-500 font-semibold">Sort:</label>
+          <select id="logSortSelect" onchange="renderLog()" class="bg-white border border-gray-300 rounded-lg text-[11px] text-gray-700 py-1 px-2 shadow-sm">
+            <option value="date_desc">Date (Newest First)</option>
+            <option value="date_asc">Date (Oldest First)</option>
+          </select>
+        </div>
       </div>
       <div id="fullLogList" class="space-y-2"></div>
     </section>
@@ -360,6 +376,20 @@
             <button onclick="manualSyncNow()" class="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs border border-gray-300 hover:bg-gray-200" title="Push/pull now"><i class="fa-solid fa-arrows-rotate"></i></button>
           </div>
           <div id="syncStatusLine" class="text-[10px] text-gray-400 mt-1"></div>
+        </div>
+        <hr class="border-gray-200">
+        <div>
+          <label class="font-semibold text-gray-700 block mb-1">Data Retention</label>
+          <p id="retentionStatusLine" class="text-[11px] text-gray-500 mb-2"></p>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-600">Keep the last</span>
+            <input id="retentionMonthsInput" type="number" min="1" value="3" class="w-14 bg-gray-50 border border-gray-300 rounded-lg p-1.5 text-center text-gray-800">
+            <span class="text-gray-600">months of transactions active</span>
+          </div>
+          <button onclick="archiveOldTransactions()" class="w-full mt-2 bg-gray-100 border border-gray-300 text-gray-800 py-2 rounded-xl font-semibold hover:bg-gray-200">
+            Archive Older Transactions Now
+          </button>
+          <p class="text-[10px] text-gray-400 mt-1">Older one-time transactions get folded into each account's balance (your totals don't change) and moved out of the active Log so things stay fast. They're kept in your data — export a backup first if you want a full record you can browse later. Recurring bills/paychecks and debt history aren't affected.</p>
         </div>
         <hr class="border-gray-200">
         <button onclick="resetAppToDemo()" class="w-full bg-amber-50 text-amber-700 border border-amber-200 py-2 rounded-xl font-semibold hover:bg-amber-100">
@@ -1098,6 +1128,8 @@
       if (!state.paidStatus) state.paidStatus = {};
       if (!state.exceptions) state.exceptions = {};
       if (!state.debtPaymentOverrides) state.debtPaymentOverrides = {};
+      if (!state.archivedTransactions) state.archivedTransactions = [];
+      if (state.retentionAnchorDate === undefined) state.retentionAnchorDate = null;
       if (!state.categories.find(c => c.name.toLowerCase() === 'unassigned')) {
         state.categories.unshift({ id: 'cat-unassigned', name: 'Unassigned', color: '#9CA3AF', icon: 'fa-question' });
       }
@@ -1118,6 +1150,70 @@
     function saveState() {
       renderApp();
       persist();
+    }
+
+    function updateRetentionStatusLine() {
+      const el = document.getElementById('retentionStatusLine');
+      if (!el) return;
+      const archivedCount = (state.archivedTransactions || []).length;
+      if (state.retentionAnchorDate) {
+        el.textContent = `Archived everything before ${state.retentionAnchorDate} (${archivedCount} transaction${archivedCount === 1 ? '' : 's'} folded in so far).`;
+      } else {
+        el.textContent = 'Nothing archived yet — all transactions are active.';
+      }
+    }
+
+    function archiveOldTransactions() {
+      const n = parseInt(document.getElementById('retentionMonthsInput').value);
+      if (!n || n < 1) { alert('Enter a valid number of months to keep (1 or more).'); return; }
+
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - n);
+      cutoff.setDate(1);
+      const cutoffStr = formatLocalDate(cutoff);
+
+      if (state.retentionAnchorDate && state.retentionAnchorDate >= cutoffStr) {
+        alert(`Already archived everything before ${state.retentionAnchorDate}, which is already at or past a ${n}-month window. Nothing new to archive.`);
+        return;
+      }
+
+      const toArchive = state.transactions.filter(t => t.date < cutoffStr);
+      if (toArchive.length === 0) {
+        state.retentionAnchorDate = cutoffStr;
+        saveState();
+        updateRetentionStatusLine();
+        alert('No transactions older than the cutoff — nothing to archive.');
+        return;
+      }
+
+      if (!confirm(`This will fold ${toArchive.length} transaction(s) dated before ${cutoffStr} into each account's starting balance, then move them out of the active Log. Your current totals won't change, but day-by-day balances before ${cutoffStr} will no longer be exact once this is done.\n\nThey stay in your data (and in any backup you export) — just not recalculated day-to-day anymore. Recommend exporting a backup first.\n\nContinue?`)) {
+        return;
+      }
+
+      // Fold the archived amounts into each account's balance so the running
+      // total from today forward is completely unaffected by the archive.
+      const deltaByAccount = {};
+      toArchive.forEach(t => {
+        const delta = t.type === 'income' ? t.amount : -t.amount;
+        deltaByAccount[t.accountId] = (deltaByAccount[t.accountId] || 0) + delta;
+      });
+      state.accounts.forEach(a => {
+        if (deltaByAccount[a.id]) a.balance += deltaByAccount[a.id];
+      });
+
+      const archivedIds = new Set(toArchive.map(t => t.id));
+      archivedIds.forEach(id => { delete state.paidStatus[id]; });
+      Object.keys(state.overrides || {}).forEach(dateKey => {
+        if (dateKey < cutoffStr) delete state.overrides[dateKey];
+      });
+
+      state.archivedTransactions = (state.archivedTransactions || []).concat(toArchive);
+      state.transactions = state.transactions.filter(t => t.date >= cutoffStr);
+      state.retentionAnchorDate = cutoffStr;
+
+      saveState();
+      updateRetentionStatusLine();
+      alert(`Archived ${toArchive.length} transaction(s) older than ${cutoffStr}. Balances are unchanged.`);
     }
 
     function exportDataJSON() {
@@ -1184,6 +1280,7 @@
 
     function openModal(id) { 
       if (id === 'multiAccountFilterModal') renderMultiAccountFilterUI();
+      if (id === 'settingsModal') updateRetentionStatusLine();
       document.getElementById(id).classList.remove('hidden'); 
     }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
@@ -1304,6 +1401,37 @@
       saveViewState();
     }
 
+    function jumpToDate(dateStr) {
+      if (!dateStr) return;
+      currentMonthDate = parseLocalDate(dateStr);
+      selectedDateStr = dateStr;
+      renderCalendar();
+      saveViewState();
+    }
+
+    function jumpToSpecificDate() {
+      let input = document.getElementById('calendarJumpDateInput');
+      if (!input) {
+        input = document.createElement('input');
+        input.type = 'date';
+        input.id = 'calendarJumpDateInput';
+        input.style.position = 'fixed';
+        input.style.top = '-9999px';
+        input.style.left = '-9999px';
+        input.style.opacity = '0';
+        document.body.appendChild(input);
+        input.addEventListener('change', () => { if (input.value) jumpToDate(input.value); });
+      }
+      input.value = selectedDateStr;
+      if (typeof input.showPicker === 'function') {
+        try { input.showPicker(); return; } catch (e) { /* fall through to focus */ }
+      }
+      input.style.top = '';
+      input.style.left = '';
+      input.style.opacity = '1';
+      input.focus();
+    }
+
     function fmtMoney(num) {
       return (num < 0 ? '-$' : '$') + Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
@@ -1333,6 +1461,7 @@
         const startInput = document.getElementById('budgetFilterStart');
         const endInput = document.getElementById('budgetFilterEnd');
         const modeSelect = document.getElementById('budgetFilterMode');
+        const logHistorySelect = document.getElementById('logHistoryWindow');
         localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({
           activeTab,
           activeForecastMode,
@@ -1346,7 +1475,8 @@
           budgetFilterMode: modeSelect ? modeSelect.value : undefined,
           budgetFilterMonth: monthInput ? monthInput.value : undefined,
           budgetFilterStart: startInput ? startInput.value : undefined,
-          budgetFilterEnd: endInput ? endInput.value : undefined
+          budgetFilterEnd: endInput ? endInput.value : undefined,
+          logHistoryWindow: logHistorySelect ? logHistorySelect.value : undefined
         }));
       } catch (e) {
         // View state is a nice-to-have, never let it break the app.
@@ -1396,6 +1526,10 @@
       if (vs.budgetFilterEnd) {
         const endInput = document.getElementById('budgetFilterEnd');
         if (endInput) endInput.value = vs.budgetFilterEnd;
+      }
+      if (vs.logHistoryWindow) {
+        const logHistorySelect = document.getElementById('logHistoryWindow');
+        if (logHistorySelect) logHistorySelect.value = vs.logHistoryWindow;
       }
       toggleBudgetFilterUI();
 
@@ -2194,6 +2328,7 @@
       const query = (document.getElementById('logSearchInput')?.value || '').toLowerCase();
       const hidePast = document.getElementById('chkHidePastLog')?.checked || false;
       const todayStr = formatLocalDate(new Date());
+      const historyWindow = document.getElementById('logHistoryWindow')?.value || '3';
 
       const list = document.getElementById('fullLogList');
 
@@ -2207,6 +2342,16 @@
         filtered = filtered.filter(t => t.date >= todayStr);
       }
 
+      let hiddenOlderCount = 0;
+      if (historyWindow !== 'all') {
+        const cutoff = new Date();
+        cutoff.setMonth(cutoff.getMonth() - parseInt(historyWindow));
+        const cutoffStr = formatLocalDate(cutoff);
+        const beforeCount = filtered.length;
+        filtered = filtered.filter(t => t.date >= cutoffStr);
+        hiddenOlderCount = beforeCount - filtered.length;
+      }
+
       const sortMode = document.getElementById('logSortSelect')?.value || 'date_desc';
       filtered = filtered.slice().sort((a, b) => {
         if (a.date !== b.date) {
@@ -2216,7 +2361,13 @@
         return sortMode === 'date_asc' ? (a.id > b.id ? 1 : -1) : (a.id > b.id ? -1 : 1);
       });
 
-      list.innerHTML = filtered.length === 0
+      const archivedCount = (state.archivedTransactions || []).length;
+      const hintParts = [];
+      if (hiddenOlderCount > 0) hintParts.push(`${hiddenOlderCount} older ${hiddenOlderCount === 1 ? 'entry' : 'entries'} hidden — widen "Show" above to see them`);
+      if (archivedCount > 0) hintParts.push(`${archivedCount} archived (Settings → Data Retention)`);
+      const hint = hintParts.length ? `<div class="text-[10px] text-gray-400 text-center italic px-1">${hintParts.join(' · ')}</div>` : '';
+
+      list.innerHTML = hint + (filtered.length === 0
         ? `<div class="text-xs text-gray-500 italic p-4 text-center">No matching transactions.</div>`
         : filtered.map(t => {
             const isPaid = !!state.paidStatus[t.id];
@@ -2235,7 +2386,7 @@
                 <button onclick="deleteTransaction('${t.id}')" class="text-gray-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>
               </div>
             </div>
-          `;}).join('');
+          `;}).join(''));
     }
 
     function getAccountName(accountId) {
@@ -2425,43 +2576,54 @@
       }
 
       // --- Period income vs. expense totals (all categories, not just budgeted ones) ---
+      // Split into Actual (already happened, date <= today) vs Planned (still projected,
+      // date > today) so the numbers aren't a blended guess — matches what's really landed
+      // in the account vs. what's just scheduled/forecasted for the rest of the period.
       const totalsEl = document.getElementById('budgetPeriodTotals');
+      const todayStr = formatLocalDate(new Date());
       if (filterMode === 'all' || !startDateStr || !endDateStr) {
         totalsEl.innerHTML = '';
       } else {
-        let totalIncome = 0;
-        let totalExpense = 0;
+        let incomeActual = 0, incomePlanned = 0, expenseActual = 0, expensePlanned = 0;
 
         state.transactions.forEach(t => {
           if (t.date < startDateStr || t.date > endDateStr) return;
-          if (t.type === 'income') totalIncome += t.amount;
-          else if (t.type === 'expense') totalExpense += t.amount;
+          const isActual = t.date <= todayStr;
+          if (t.type === 'income') { if (isActual) incomeActual += t.amount; else incomePlanned += t.amount; }
+          else if (t.type === 'expense') { if (isActual) expenseActual += t.amount; else expensePlanned += t.amount; }
         });
 
         let cur = parseLocalDate(startDateStr);
         const endD = parseLocalDate(endDateStr);
         while (cur <= endD) {
           const k = formatLocalDate(cur);
+          const isActual = k <= todayStr;
           getRecurringForDate(k).forEach(r => {
-            if (r.type === 'income') totalIncome += r.amount;
-            else if (r.type === 'expense') totalExpense += r.amount;
+            if (r.type === 'income') { if (isActual) incomeActual += r.amount; else incomePlanned += r.amount; }
+            else if (r.type === 'expense') { if (isActual) expenseActual += r.amount; else expensePlanned += r.amount; }
           });
           cur.setDate(cur.getDate() + 1);
         }
 
-        const net = totalIncome - totalExpense;
+        const netActual = incomeActual - expenseActual;
+        const netFull = (incomeActual + incomePlanned) - (expenseActual + expensePlanned);
+        const hasPlanned = incomePlanned > 0 || expensePlanned > 0;
+
         totalsEl.innerHTML = `
           <div class="p-3 rounded-xl bg-white border border-gray-300 shadow-sm text-center">
             <div class="text-[9px] font-bold text-gray-500 uppercase">Income</div>
-            <div class="font-mono font-bold text-sm text-emerald-700">${fmtMoney(totalIncome)}</div>
+            <div class="font-mono font-bold text-sm text-emerald-700">${fmtMoney(incomeActual)}</div>
+            ${incomePlanned > 0 ? `<div class="text-[9px] text-gray-400 font-mono">+${fmtMoney(incomePlanned)} planned</div>` : ''}
           </div>
           <div class="p-3 rounded-xl bg-white border border-gray-300 shadow-sm text-center">
             <div class="text-[9px] font-bold text-gray-500 uppercase">Expenses</div>
-            <div class="font-mono font-bold text-sm text-red-600">${fmtMoney(totalExpense)}</div>
+            <div class="font-mono font-bold text-sm text-red-600">${fmtMoney(expenseActual)}</div>
+            ${expensePlanned > 0 ? `<div class="text-[9px] text-gray-400 font-mono">+${fmtMoney(expensePlanned)} planned</div>` : ''}
           </div>
           <div class="p-3 rounded-xl bg-white border border-gray-300 shadow-sm text-center">
             <div class="text-[9px] font-bold text-gray-500 uppercase">Net</div>
-            <div class="font-mono font-bold text-sm ${net >= 0 ? 'text-emerald-700' : 'text-red-600'}">${fmtMoney(net)}</div>
+            <div class="font-mono font-bold text-sm ${netActual >= 0 ? 'text-emerald-700' : 'text-red-600'}">${fmtMoney(netActual)}</div>
+            ${hasPlanned ? `<div class="text-[9px] text-gray-400 font-mono">${fmtMoney(netFull)} full period</div>` : ''}
           </div>
         `;
       }
@@ -2481,32 +2643,36 @@
           if (endDateStr && t.date > endDateStr) return false;
           return true;
         });
-        const manualTotal = matchingTxs.reduce((s, t) => s + t.amount, 0);
+        let actualTotal = matchingTxs.filter(t => t.date <= todayStr).reduce((s, t) => s + t.amount, 0);
+        let plannedTotal = matchingTxs.filter(t => t.date > todayStr).reduce((s, t) => s + t.amount, 0);
 
-        let recurringTotal = 0;
         if (startDateStr && endDateStr) {
           let cur = parseLocalDate(startDateStr);
           const endD = parseLocalDate(endDateStr);
           while (cur <= endD) {
             const k = formatLocalDate(cur);
+            const isActual = k <= todayStr;
             const dayRecs = getRecurringForDate(k);
             dayRecs.forEach(r => {
               const rCat = r.category || 'Unassigned';
               if (r.type === bType && (rCat === b.category || (!r.category && b.category === 'General'))) {
-                recurringTotal += r.amount;
+                if (isActual) actualTotal += r.amount; else plannedTotal += r.amount;
               }
             });
             cur.setDate(cur.getDate() + 1);
           }
         }
 
-        const total = manualTotal + recurringTotal;
-        const pct = b.limit > 0 ? Math.min(100, Math.round((total / b.limit) * 100)) : 0;
+        const total = actualTotal + plannedTotal;
+        const actualPct = b.limit > 0 ? Math.min(100, Math.round((actualTotal / b.limit) * 100)) : 0;
+        const totalPct = b.limit > 0 ? Math.min(100, Math.round((total / b.limit) * 100)) : 0;
         const isIncome = bType === 'income';
-        const barColor = isIncome ? (pct >= 100 ? 'bg-emerald-500' : 'bg-amber-500') : (pct >= 100 ? 'bg-red-500' : 'bg-amber-500');
+        const actualBarColor = isIncome ? 'bg-emerald-600' : (actualPct >= 100 ? 'bg-red-500' : 'bg-amber-500');
+        const plannedBarColor = isIncome ? 'bg-emerald-200' : 'bg-amber-200';
+        const remaining = Math.max(0, b.limit - total);
         const footerText = isIncome
-          ? `${pct}% of goal reached (${fmtMoney(Math.max(0, b.limit - total))} to go)`
-          : `${pct}% spent (${fmtMoney(Math.max(0, b.limit - total))} remaining)`;
+          ? `${fmtMoney(actualTotal)} actual${plannedTotal > 0 ? ` + ${fmtMoney(plannedTotal)} planned` : ''} toward goal (${fmtMoney(remaining)} to go)`
+          : `${fmtMoney(actualTotal)} actual${plannedTotal > 0 ? ` + ${fmtMoney(plannedTotal)} planned` : ''} (${fmtMoney(remaining)} remaining)`;
 
         return `
           <div class="p-4 rounded-xl bg-white border border-gray-300 space-y-2 text-xs shadow-sm">
@@ -2520,8 +2686,9 @@
                 <button onclick="deleteBudget('${b.id}')" class="text-gray-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>
               </div>
             </div>
-            <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden border border-gray-200">
-              <div class="${barColor} h-full" style="width: ${pct}%"></div>
+            <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden border border-gray-200 flex">
+              <div class="${actualBarColor} h-full" style="width: ${actualPct}%"></div>
+              <div class="${plannedBarColor} h-full" style="width: ${Math.max(0, totalPct - actualPct)}%"></div>
             </div>
             <div class="text-[10px] text-gray-500">${footerText}</div>
           </div>
