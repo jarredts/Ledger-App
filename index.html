@@ -93,25 +93,25 @@
       
       <!-- MODE TOGGLE -->
       <div class="flex gap-1 bg-amber-100/80 p-1 rounded-xl border border-amber-300 shadow-sm">
-        <button id="btnModeLiquid" onclick="switchForecastMode('liquid')" class="flex-1 py-2 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm flex items-center justify-center gap-1.5 transition-all">
+        <button id="btnModeLiquid" onclick="switchForecastMode('liquid')" class="flex-1 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm flex items-center justify-center gap-1.5 transition-all">
           <i class="fa-solid fa-wallet text-[11px]"></i> Cash Calendar
         </button>
-        <button id="btnModeDebt" onclick="switchForecastMode('debt')" class="flex-1 py-2 rounded-lg text-xs font-bold text-amber-900 hover:text-gray-900 flex items-center justify-center gap-1.5 transition-all">
+        <button id="btnModeDebt" onclick="switchForecastMode('debt')" class="flex-1 py-1.5 rounded-lg text-xs font-bold text-amber-900 hover:text-gray-900 flex items-center justify-center gap-1.5 transition-all">
           <i class="fa-solid fa-credit-card text-[11px]"></i> Debt Calendar
         </button>
       </div>
 
       <div class="flex gap-1 bg-gray-200 p-1 rounded-xl border border-gray-300">
-        <button id="btnCalView" onclick="setSubView('cal')" class="flex-1 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm">Calendar</button>
-        <button id="btnTrendView" onclick="setSubView('trend')" class="flex-1 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:text-gray-900">Trend</button>
+        <button id="btnCalView" onclick="setSubView('cal')" class="flex-1 py-1 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm">Calendar</button>
+        <button id="btnTrendView" onclick="setSubView('trend')" class="flex-1 py-1 rounded-lg text-xs font-bold text-gray-600 hover:text-gray-900">Trend</button>
       </div>
 
       <div class="grid grid-cols-2 gap-2">
-        <button onclick="openModal('multiAccountFilterModal')" class="bg-white border border-gray-300 rounded-xl p-2.5 text-xs font-medium text-gray-800 shadow-sm flex justify-between items-center text-left">
+        <button onclick="openModal('multiAccountFilterModal')" class="bg-white border border-gray-300 rounded-xl p-2 text-xs font-medium text-gray-800 shadow-sm flex justify-between items-center text-left">
           <span id="multiAccountFilterLabel" class="truncate">All Cash Accounts Combined</span>
           <i class="fa-solid fa-chevron-down text-gray-500 text-[10px] ml-1"></i>
         </button>
-        <select id="forecastRangeSelect" onchange="updateForecastRange(this.value)" class="select-custom bg-white border border-gray-300 rounded-xl p-2.5 text-xs font-bold text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
+        <select id="forecastRangeSelect" onchange="updateForecastRange(this.value)" class="select-custom bg-white border border-gray-300 rounded-xl p-2 text-xs font-bold text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
           <option value="0.5">Forecast: 6 Months</option>
           <option value="1" selected>Forecast: 1 Year</option>
           <option value="2">Forecast: 2 Years</option>
@@ -122,7 +122,10 @@
       </div>
 
       <div id="forecastCustomDateContainer" class="hidden">
-        <input type="date" id="forecastCustomDateInput" onchange="setForecastCustomDate(this.value)" class="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs font-bold text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
+        <label class="flex items-center gap-2 bg-amber-500 border border-amber-500 rounded-xl p-2.5 shadow-sm focus-within:ring-2 focus-within:ring-amber-300">
+          <i class="fa-solid fa-calendar-day text-white text-[11px]"></i>
+          <input type="date" id="forecastCustomDateInput" onchange="setForecastCustomDate(this.value)" class="flex-1 bg-transparent border-none p-0 text-xs font-bold text-white placeholder-white focus:ring-0 focus:outline-none [color-scheme:dark]">
+        </label>
       </div>
 
       <div id="forecastCalView" class="space-y-3">
@@ -143,18 +146,18 @@
           </div>
         </div>
 
-        <label class="flex items-center gap-1.5 text-[11px] text-gray-500 px-1 cursor-pointer">
+        <label class="flex items-center gap-1.5 text-[10px] text-gray-400 px-1 cursor-pointer">
           <input type="checkbox" id="chkHidePastMonths" onchange="onHidePastMonthsToggle()" class="w-3 h-3 text-amber-500 rounded">
           <span>Hide Past Months (stay on current month and forward)</span>
         </label>
 
         <div class="grid grid-cols-7 gap-1 text-center font-mono text-[10px] text-gray-500 font-bold uppercase tracking-wider">
-          <div class="text-red-500 bg-red-50/50 py-0.5 rounded">Sun</div>
-          <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div>
-          <div class="text-red-500 bg-red-50/50 py-0.5 rounded">Sat</div>
+          <div class="text-red-500 bg-red-50/50 py-1 rounded">Sun</div>
+          <div class="py-1">Mon</div><div class="py-1">Tue</div><div class="py-1">Wed</div><div class="py-1">Thu</div><div class="py-1">Fri</div>
+          <div class="text-red-500 bg-red-50/50 py-1 rounded">Sat</div>
         </div>
 
-        <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
+        <div id="calendarGrid" class="grid grid-cols-7 gap-1.5"></div>
 
         <!-- Selected Day Card -->
         <div class="p-3.5 rounded-xl bg-white border border-gray-300 shadow-sm space-y-2.5">
@@ -2133,7 +2136,7 @@
       }
 
       for (let i = 0; i < startDayIndex; i++) {
-        grid.innerHTML += `<div class="min-h-[48px] p-1 rounded-xl bg-gray-200/40 border border-transparent"></div>`;
+        grid.innerHTML += `<div class="min-h-[64px] p-1 rounded-xl bg-gray-200/40 border border-transparent"></div>`;
       }
 
       for (let day = 1; day <= lastDay.getDate(); day++) {
@@ -2158,16 +2161,18 @@
         }
 
         grid.innerHTML += `
-          <button onclick="selectDate('${dateStr}')" class="min-h-[48px] p-1 rounded-xl flex flex-col justify-between transition-all relative ${
+          <button onclick="selectDate('${dateStr}')" class="min-h-[64px] p-1.5 rounded-xl flex flex-col justify-between transition-all relative ${
             isSelected 
-              ? 'bg-amber-100 border-2 border-amber-500 shadow-sm' 
-              : 'bg-white border border-gray-200 hover:border-gray-300'
+              ? 'bg-amber-100 border-2 border-amber-500 shadow-md' 
+              : isToday
+                ? 'bg-white border-2 border-amber-400 shadow-sm'
+                : 'bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm'
           }">
             <div class="flex justify-between w-full items-center">
-              <span class="text-[10px] font-mono font-bold ${isToday ? 'text-amber-600 underline' : isWeekend ? 'text-red-500' : 'text-gray-700'}">${day}</span>
+              <span class="text-[11px] font-mono font-bold w-4 h-4 flex items-center justify-center rounded-full ${isToday ? 'bg-amber-500 text-white' : isWeekend ? 'text-red-500' : 'text-gray-700'}">${day}</span>
               ${hasEvents ? '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>' : ''}
             </div>
-            <div class="text-[9px] font-mono truncate w-full ${dayBalance < 0 ? 'text-red-600 font-bold' : 'text-emerald-700 font-medium'} ${isHighlighted ? 'font-black underline scale-105' : ''}">
+            <div class="text-[10px] font-mono truncate w-full ${dayBalance < 0 ? 'text-red-600 font-bold' : 'text-emerald-700 font-medium'} ${isHighlighted ? 'font-black underline' : ''}">
               ${hasEvents || isSelected || isToday ? fmtMoney(dayBalance) : ''}
             </div>
           </button>
@@ -2609,6 +2614,30 @@
         const netFull = (incomeActual + incomePlanned) - (expenseActual + expensePlanned);
         const hasPlanned = incomePlanned > 0 || expensePlanned > 0;
 
+        // --- Reconciliation: how much of total Expenses is actually covered by a
+        // budget category box below, vs. spending with no matching budget at all.
+        // This is what lets the category boxes add up (or not) to the Expenses card above.
+        const expenseBudgetCats = new Set(state.budgets.filter(b => (b.type || 'expense') === 'expense').map(b => b.category));
+        let categorizedExpense = 0;
+        state.transactions.forEach(t => {
+          if (t.date < startDateStr || t.date > endDateStr || t.type !== 'expense') return;
+          const tCat = t.category || 'Unassigned';
+          if (expenseBudgetCats.has(tCat)) categorizedExpense += t.amount;
+        });
+        let curC = parseLocalDate(startDateStr);
+        const endC = parseLocalDate(endDateStr);
+        while (curC <= endC) {
+          const k = formatLocalDate(curC);
+          getRecurringForDate(k).forEach(r => {
+            if (r.type !== 'expense') return;
+            const rCat = r.category || 'Unassigned';
+            if (expenseBudgetCats.has(rCat) || (!r.category && expenseBudgetCats.has('General'))) categorizedExpense += r.amount;
+          });
+          curC.setDate(curC.getDate() + 1);
+        }
+        const totalExpenseFull = expenseActual + expensePlanned;
+        const unbudgeted = Math.max(0, totalExpenseFull - categorizedExpense);
+
         totalsEl.innerHTML = `
           <div class="p-3 rounded-xl bg-white border border-gray-300 shadow-sm text-center">
             <div class="text-[9px] font-bold text-gray-500 uppercase">Income</div>
@@ -2624,6 +2653,9 @@
             <div class="text-[9px] font-bold text-gray-500 uppercase">Net</div>
             <div class="font-mono font-bold text-sm ${netActual >= 0 ? 'text-emerald-700' : 'text-red-600'}">${fmtMoney(netActual)}</div>
             ${hasPlanned ? `<div class="text-[9px] text-gray-400 font-mono">${fmtMoney(netFull)} full period</div>` : ''}
+          </div>
+          <div class="col-span-3 -mt-1 text-center text-[10px] font-mono ${unbudgeted > 0.01 ? 'text-amber-700' : 'text-gray-400'}">
+            ${fmtMoney(categorizedExpense)} in budget categories below${unbudgeted > 0.01 ? ` &middot; ${fmtMoney(unbudgeted)} unbudgeted` : ' &middot; fully accounted for'}
           </div>
         `;
       }
