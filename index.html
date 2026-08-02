@@ -312,6 +312,9 @@
         <button onclick="closeModal('settingsModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
       </div>
       <div class="space-y-3 text-xs">
+        <button onclick="closeModal('settingsModal'); openModal('guideModal')" class="w-full bg-amber-50 border border-amber-200 text-amber-700 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-amber-100">
+          <i class="fa-solid fa-book-open"></i> User Guide
+        </button>
         <button onclick="exportDataJSON()" class="w-full bg-gray-100 border border-gray-300 text-gray-800 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-200">
           <i class="fa-solid fa-download"></i> Backup Data (Export JSON)
         </button>
@@ -326,6 +329,59 @@
         <button onclick="clearAllDataWithPrompt()" class="w-full bg-red-50 text-red-600 border border-red-200 py-2 rounded-xl font-semibold hover:bg-red-100">
           Reset All Data (Clear Everything)
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Guide Modal -->
+  <div id="guideModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto shadow-xl">
+      <div class="flex justify-between items-center sticky top-0 bg-white pb-2 -mt-1 -mx-1 px-1">
+        <h3 class="font-bold text-base text-gray-900">User Guide</h3>
+        <button onclick="closeModal('guideModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+      </div>
+      <div class="space-y-4 text-xs text-gray-700 leading-relaxed">
+
+        <div>
+          <div class="font-bold text-gray-900 mb-1">Two calendars, one app</div>
+          <p>Toggle between <b>Cash Calendar</b> and <b>Debt Calendar</b> at the top. Cash shows your checking/savings balance day by day; Debt shows what each card or loan owes over time. Use the account filter dropdown to combine or isolate specific accounts within whichever calendar you're on.</p>
+        </div>
+
+        <div>
+          <div class="font-bold text-gray-900 mb-1">Editing a recurring bill or paycheck</div>
+          <p>Tap a day, then the pencil next to any recurring item. Choose <b>this occurrence only</b> for a one-off change (skips just that date), or <b>all future events</b> to permanently change the amount going forward — this splits the schedule so past history stays untouched.</p>
+        </div>
+
+        <div>
+          <div class="font-bold text-gray-900 mb-1">Debt payments &amp; payoffs</div>
+          <p>Tapping the pencil on a debt payment opens a small override box for <b>just that one payment</b> — perfect for an extra or full payoff amount on a specific date. There's a link inside that box if you actually meant to change the debt's permanent settings (APR, minimum payment, end date) instead. Once a debt's balance actually reaches $0, future payments stop showing automatically — no manual end date needed.</p>
+        </div>
+
+        <div>
+          <div class="font-bold text-gray-900 mb-1">Marking things paid</div>
+          <p>Every transaction — recurring or one-off, in the day view or the Log tab — has a checkbox to mark it <b>Paid/Cleared</b>. This is just for your own tracking; it doesn't change the forecast math, so it's safe to check things off early or late without throwing off future balances.</p>
+        </div>
+
+        <div>
+          <div class="font-bold text-gray-900 mb-1">Keeping a balance accurate</div>
+          <p>Tap the wallet icon (top right) to manage accounts. Tapping an account's name lets you rename it or fix its original base balance. The <i class="fa-solid fa-arrows-rotate text-emerald-600"></i> icon next to it is different — use that anytime to reconcile with your real bank balance; it logs an adjustment transaction rather than rewriting history.</p>
+        </div>
+
+        <div>
+          <div class="font-bold text-gray-900 mb-1">Overriding a day's balance directly</div>
+          <p>If you just want to force what a specific day's total balance shows (bypassing all the math), tap that day and use <b>Override</b>. Useful for correcting a known number without digging into individual transactions.</p>
+        </div>
+
+        <div>
+          <div class="font-bold text-gray-900 mb-1">Budgets</div>
+          <p>Set a monthly limit per category in the Budgets tab — it tracks what you've actually spent against that limit for the current period.</p>
+        </div>
+
+        <div>
+          <div class="font-bold text-gray-900 mb-1">Backup &amp; restore</div>
+          <p>Settings → <b>Backup Data</b> downloads everything as a JSON file — keep a copy somewhere safe (email it to yourself, save to Drive). <b>Restore Data from JSON</b> loads a backup back in, replacing what's currently there.</p>
+        </div>
+
       </div>
     </div>
   </div>
@@ -365,6 +421,23 @@
           <button type="button" onclick="clearBalanceOverride()" class="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-xs border border-red-200 hover:bg-red-100">Remove</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Update Current Balance Modal -->
+  <div id="updateBalanceModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-xl">
+      <div class="flex justify-between items-center">
+        <h3 id="updateBalModalTitle" class="font-bold text-base text-gray-900">Update Balance</h3>
+        <button onclick="closeModal('updateBalanceModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+      </div>
+      <p class="text-xs text-gray-500">Tell it what this account's balance actually is right now (like after checking your bank app), and it'll log an adjustment to reconcile — your transaction history stays intact.</p>
+      <div class="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-2">
+        Currently calculated: <span id="updateBalCurrentCalc" class="font-mono font-bold text-gray-900">$0.00</span>
+      </div>
+      <input id="updateBalAccountId" type="hidden">
+      <input id="updateBalAmount" type="number" step="0.01" placeholder="Actual current balance ($)" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
+      <button type="button" onclick="saveUpdateBalance()" class="w-full bg-amber-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-amber-600">Update Balance</button>
     </div>
   </div>
 
@@ -830,8 +903,10 @@
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `ledger_backup_${formatLocalDate(new Date())}.json`;
+      const filename = `ledger_backup_${formatLocalDate(new Date())}.json`;
+      a.download = filename;
       a.click();
+      alert(`Backup saved as "${filename}" — check your Downloads folder.`);
     }
 
     function importDataJSON(e) {
@@ -1412,14 +1487,65 @@
 
     function renderAccountsList() {
       document.getElementById('accountsList').innerHTML = state.accounts.map(a => `
-        <div class="flex justify-between items-center p-2.5 rounded-lg bg-gray-50 border border-gray-200 text-xs hover:border-amber-500 cursor-pointer transition-colors" onclick="editAccount('${a.id}')">
-          <div>
+        <div class="flex justify-between items-center p-2.5 rounded-lg bg-gray-50 border border-gray-200 text-xs hover:border-amber-500 transition-colors">
+          <div class="cursor-pointer flex-1" onclick="editAccount('${a.id}')">
             <div class="font-bold text-gray-900">${a.name} <i class="fa-solid fa-pen text-[9px] text-amber-600 ml-1"></i></div>
             <div class="text-[10px] text-gray-500 font-mono">Base Balance: ${fmtMoney(a.balance)}</div>
           </div>
+          <button onclick="event.stopPropagation(); openUpdateBalance('${a.id}')" title="Update today's actual balance" class="text-gray-400 hover:text-emerald-600 px-2 py-1"><i class="fa-solid fa-arrows-rotate"></i></button>
           <button onclick="event.stopPropagation(); deleteAccount('${a.id}')" class="text-gray-400 hover:text-red-500 px-2 py-1"><i class="fa-solid fa-trash"></i></button>
         </div>
       `).join('');
+    }
+
+    function getCurrentBalanceForAccount(accountId) {
+      const savedMode = activeForecastMode;
+      const savedLiquidSel = selectedLiquidAccountIds;
+      activeForecastMode = 'liquid';
+      selectedLiquidAccountIds = [accountId];
+      const bal = calculateBalanceUpToDate(formatLocalDate(new Date()));
+      activeForecastMode = savedMode;
+      selectedLiquidAccountIds = savedLiquidSel;
+      return bal;
+    }
+
+    function openUpdateBalance(accountId) {
+      const acc = state.accounts.find(a => a.id === accountId);
+      if (!acc) return;
+      const currentCalc = getCurrentBalanceForAccount(accountId);
+      document.getElementById('updateBalAccountId').value = accountId;
+      document.getElementById('updateBalModalTitle').textContent = `Update Balance — ${acc.name}`;
+      document.getElementById('updateBalCurrentCalc').textContent = fmtMoney(currentCalc);
+      document.getElementById('updateBalAmount').value = currentCalc.toFixed(2);
+      closeModal('accountModal');
+      document.getElementById('updateBalanceModal').classList.remove('hidden');
+    }
+
+    function saveUpdateBalance() {
+      const accountId = document.getElementById('updateBalAccountId').value;
+      const acc = state.accounts.find(a => a.id === accountId);
+      if (!acc) return;
+      const newBalance = parseFloat(document.getElementById('updateBalAmount').value);
+      if (isNaN(newBalance)) { alert('Enter a valid balance.'); return; }
+
+      const currentCalc = getCurrentBalanceForAccount(accountId);
+      const diff = Math.round((newBalance - currentCalc) * 100) / 100;
+
+      if (diff !== 0) {
+        state.transactions.push({
+          id: 'tx-' + Date.now(),
+          desc: 'Balance Adjustment',
+          amount: Math.abs(diff),
+          category: 'General',
+          type: diff > 0 ? 'income' : 'expense',
+          accountId: accountId,
+          date: formatLocalDate(new Date()),
+          isPaid: true
+        });
+      }
+
+      closeModal('updateBalanceModal');
+      saveState();
     }
 
     function editAccount(id) {
@@ -1630,11 +1756,16 @@
 
       list.innerHTML = filtered.length === 0
         ? `<div class="text-xs text-gray-500 italic p-4 text-center">No matching transactions.</div>`
-        : filtered.slice().reverse().map(t => `
-            <div class="flex justify-between items-center p-3 rounded-xl bg-white border border-gray-300 text-xs shadow-sm">
-              <div>
-                <div class="font-bold text-gray-900">${t.desc}</div>
-                <div class="text-[10px] text-gray-500 font-mono">${t.date} · ${t.category || 'General'}</div>
+        : filtered.slice().reverse().map(t => {
+            const isPaid = !!state.paidStatus[t.id];
+            return `
+            <div class="flex justify-between items-center p-3 rounded-xl bg-white border border-gray-300 text-xs shadow-sm ${isPaid ? 'opacity-60 bg-emerald-50/40' : ''}">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" ${isPaid ? 'checked' : ''} onchange="togglePaid('${t.id}')" title="Mark as Paid/Cleared" class="w-3.5 h-3.5 text-emerald-600 rounded cursor-pointer flex-shrink-0">
+                <div>
+                  <div class="font-bold text-gray-900 ${isPaid ? 'line-through' : ''}">${t.desc} ${isPaid ? `<span class="ml-1 text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold uppercase">PAID</span>` : ''}</div>
+                  <div class="text-[10px] text-gray-500 font-mono">${t.date} · ${t.category || 'General'}</div>
+                </div>
               </div>
               <div class="flex items-center gap-3">
                 <span class="font-mono font-bold ${t.type === 'income' ? 'text-emerald-700' : 'text-red-600'}">${t.type === 'income' ? '+' : '-'}${fmtMoney(t.amount)}</span>
@@ -1642,7 +1773,7 @@
                 <button onclick="deleteTransaction('${t.id}')" class="text-gray-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>
               </div>
             </div>
-          `).join('');
+          `;}).join('');
     }
 
     function getAccountName(accountId) {
