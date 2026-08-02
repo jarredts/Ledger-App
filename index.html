@@ -247,11 +247,11 @@
             <option value="all">All Time / Indefinite</option>
           </select>
           <div id="budgetMonthContainer">
-            <input id="budgetFilterMonthInput" type="month" onchange="renderBudgetsAndCategories()" class="bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800 w-full">
+            <input id="budgetFilterMonthInput" type="month" onchange="renderBudgetsAndCategories(); saveViewState();" class="bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800 w-full">
           </div>
           <div id="budgetRangeContainer" class="hidden grid grid-cols-2 gap-1 col-span-2">
-            <input id="budgetFilterStart" type="date" onchange="renderBudgetsAndCategories()" class="bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
-            <input id="budgetFilterEnd" type="date" onchange="renderBudgetsAndCategories()" class="bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
+            <input id="budgetFilterStart" type="date" onchange="renderBudgetsAndCategories(); saveViewState();" class="bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
+            <input id="budgetFilterEnd" type="date" onchange="renderBudgetsAndCategories(); saveViewState();" class="bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
           </div>
         </div>
       </div>
@@ -880,6 +880,7 @@
     };
 
     const STORAGE_KEY = 'ledger_v6_full_state';
+    const VIEW_STATE_KEY = 'ledger_view_state_v1';
     let state = DEMO_STATE;
     let activeTab = 'forecast';
     let activeForecastMode = 'liquid';
@@ -1155,6 +1156,7 @@
       }
 
       renderApp();
+      saveViewState();
     }
 
     function openModal(id) { 
@@ -1173,6 +1175,7 @@
       document.getElementById(`nav-${tab}`).className = 'flex flex-col items-center gap-1 text-amber-600 font-bold';
       if (tab === 'forecast') renderCalendar();
       if (tab === 'budgets') initBudgetFilters();
+      saveViewState();
     }
 
     function setSubView(view) {
@@ -1191,6 +1194,7 @@
         bCal.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:text-gray-900';
         renderChart();
       }
+      saveViewState();
     }
 
     function updateForecastRange(val) {
@@ -1205,18 +1209,21 @@
         }
         forecastCustomDate = dateInput.value;
         renderApp();
+        saveViewState();
         return;
       }
       customContainer.classList.add('hidden');
       forecastCustomDate = null;
       forecastYears = parseFloat(val);
       renderApp();
+      saveViewState();
     }
 
     function setForecastCustomDate(val) {
       if (!val) return;
       forecastCustomDate = val;
       renderApp();
+      saveViewState();
     }
 
     // Returns the Date the forecast should project out to, honoring a
@@ -1239,12 +1246,14 @@
     function changeMonth(delta) {
       currentMonthDate.setMonth(currentMonthDate.getMonth() + delta);
       renderCalendar();
+      saveViewState();
     }
 
     function jumpToToday() {
       currentMonthDate = new Date();
       selectedDateStr = formatLocalDate(new Date());
       renderCalendar();
+      saveViewState();
     }
 
     function fmtMoney(num) {
@@ -1258,6 +1267,93 @@
 
     function formatLocalDate(d) {
       return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    // --- VIEW STATE PERSISTENCE ---
+    // Remembers which tab/mode/month/date/filters you were on so a refresh
+    // (or reopening the app) lands you back where you left off, instead of
+    // resetting to today/defaults. This is separate from the financial data
+    // in STORAGE_KEY — purely UI state, safe to drop/corrupt without risk.
+    function getCurrentSubView() {
+      const cal = document.getElementById('forecastCalView');
+      return (cal && cal.classList.contains('hidden')) ? 'trend' : 'cal';
+    }
+
+    function saveViewState() {
+      try {
+        const monthInput = document.getElementById('budgetFilterMonthInput');
+        const startInput = document.getElementById('budgetFilterStart');
+        const endInput = document.getElementById('budgetFilterEnd');
+        const modeSelect = document.getElementById('budgetFilterMode');
+        localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({
+          activeTab,
+          activeForecastMode,
+          currentMonthDate: formatLocalDate(currentMonthDate),
+          selectedDateStr,
+          forecastYears,
+          forecastCustomDate,
+          subView: getCurrentSubView(),
+          selectedLiquidAccountIds,
+          selectedDebtAccountIds,
+          budgetFilterMode: modeSelect ? modeSelect.value : undefined,
+          budgetFilterMonth: monthInput ? monthInput.value : undefined,
+          budgetFilterStart: startInput ? startInput.value : undefined,
+          budgetFilterEnd: endInput ? endInput.value : undefined
+        }));
+      } catch (e) {
+        // View state is a nice-to-have, never let it break the app.
+      }
+    }
+
+    function restoreViewState() {
+      let vs = null;
+      try {
+        const raw = localStorage.getItem(VIEW_STATE_KEY);
+        if (raw) vs = JSON.parse(raw);
+      } catch (e) {
+        vs = null;
+      }
+      if (!vs) return;
+
+      if (vs.currentMonthDate) currentMonthDate = parseLocalDate(vs.currentMonthDate);
+      if (vs.selectedDateStr) selectedDateStr = vs.selectedDateStr;
+      if (typeof vs.forecastYears === 'number') forecastYears = vs.forecastYears;
+      forecastCustomDate = vs.forecastCustomDate || null;
+      if (Array.isArray(vs.selectedLiquidAccountIds) && vs.selectedLiquidAccountIds.length) selectedLiquidAccountIds = vs.selectedLiquidAccountIds;
+      if (Array.isArray(vs.selectedDebtAccountIds) && vs.selectedDebtAccountIds.length) selectedDebtAccountIds = vs.selectedDebtAccountIds;
+
+      const rangeSelect = document.getElementById('forecastRangeSelect');
+      const customContainer = document.getElementById('forecastCustomDateContainer');
+      if (forecastCustomDate) {
+        rangeSelect.value = 'custom';
+        customContainer.classList.remove('hidden');
+        document.getElementById('forecastCustomDateInput').value = forecastCustomDate;
+      } else {
+        rangeSelect.value = String(forecastYears);
+        customContainer.classList.add('hidden');
+      }
+
+      if (vs.budgetFilterMode) {
+        const modeSelect = document.getElementById('budgetFilterMode');
+        if (modeSelect) modeSelect.value = vs.budgetFilterMode;
+      }
+      if (vs.budgetFilterMonth) {
+        const monthInput = document.getElementById('budgetFilterMonthInput');
+        if (monthInput) monthInput.value = vs.budgetFilterMonth;
+      }
+      if (vs.budgetFilterStart) {
+        const startInput = document.getElementById('budgetFilterStart');
+        if (startInput) startInput.value = vs.budgetFilterStart;
+      }
+      if (vs.budgetFilterEnd) {
+        const endInput = document.getElementById('budgetFilterEnd');
+        if (endInput) endInput.value = vs.budgetFilterEnd;
+      }
+      toggleBudgetFilterUI();
+
+      switchTab(vs.activeTab || 'forecast');
+      switchForecastMode(vs.activeForecastMode || 'liquid');
+      setSubView(vs.subView || 'cal');
     }
 
     function renderMultiAccountFilterUI() {
@@ -1316,6 +1412,7 @@
 
       closeModal('multiAccountFilterModal');
       renderApp();
+      saveViewState();
     }
 
     function isAccountActive(accId) {
@@ -1899,6 +1996,7 @@
     function selectDate(d) {
       selectedDateStr = d;
       renderCalendar();
+      saveViewState();
     }
 
     function applyAutopayCatchup() {
@@ -2235,6 +2333,7 @@
       document.getElementById('budgetMonthContainer').classList.toggle('hidden', mode !== 'month');
       document.getElementById('budgetRangeContainer').classList.toggle('hidden', mode !== 'range');
       renderBudgetsAndCategories();
+      saveViewState();
     }
 
     function resetBudgetFilter() {
@@ -2436,7 +2535,12 @@
         document.getElementById('recMode').value = r.mode || 'interval';
         document.getElementById('recCount').value = r.count || 1;
         document.getElementById('recUnit').value = r.unit || 'week';
+        document.getElementById('recNth').value = r.nth || '1';
+        document.getElementById('recDayOfWeek').value = r.dayOfWeek || '0';
         document.getElementById('recStartDate').value = r.startDate;
+        document.getElementById('recEndType').value = r.endType || 'never';
+        document.getElementById('recEndDate').value = r.endDate || '';
+        document.getElementById('recMaxOccurrences').value = r.maxOccurrences || '';
         document.getElementById('recAccount').value = r.accountId;
         document.getElementById('recAutopay').checked = !!r.autopay;
         document.getElementById('recModalTitle').textContent = 'Edit Recurring Rule';
@@ -2445,11 +2549,17 @@
         document.getElementById('recDesc').value = '';
         document.getElementById('recAmount').value = '';
         document.getElementById('recCategory').value = 'Unassigned';
+        document.getElementById('recNth').value = '1';
+        document.getElementById('recDayOfWeek').value = '0';
         document.getElementById('recStartDate').value = selectedDateStr;
+        document.getElementById('recEndType').value = 'never';
+        document.getElementById('recEndDate').value = '';
+        document.getElementById('recMaxOccurrences').value = '';
         document.getElementById('recAutopay').checked = false;
         document.getElementById('recModalTitle').textContent = 'Add Recurring Rule';
       }
       toggleRecModeUI();
+      toggleRecEndUI();
       openModal('recurringModal');
     }
 
@@ -2876,12 +2986,45 @@
       });
     }
 
+    // --- SWIPE TO CHANGE MONTH ---
+    // Bound once to the calendarGrid element itself (not its cells, which get
+    // wiped and rebuilt every render) so it keeps working across re-renders.
+    function initCalendarSwipe() {
+      const grid = document.getElementById('calendarGrid');
+      if (!grid || grid.dataset.swipeBound) return;
+      grid.dataset.swipeBound = 'true';
+
+      let touchStartX = 0, touchStartY = 0, tracking = false;
+      const SWIPE_THRESHOLD = 45;
+
+      grid.addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) { tracking = false; return; }
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        tracking = true;
+      }, { passive: true });
+
+      grid.addEventListener('touchend', (e) => {
+        if (!tracking) return;
+        tracking = false;
+        const touch = e.changedTouches[0];
+        const dx = touch.clientX - touchStartX;
+        const dy = touch.clientY - touchStartY;
+        // Require a mostly-horizontal gesture so vertical scrolling isn't hijacked.
+        if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          changeMonth(dx < 0 ? 1 : -1);
+        }
+      }, { passive: true });
+    }
+
     window.onload = async function() {
       await loadState();
       verifyDataIntegrity();
       applyAutopayCatchup();
       initBudgetFilters();
+      restoreViewState();
       renderApp();
+      initCalendarSwipe();
       initSyncOnBoot();
     };
 
