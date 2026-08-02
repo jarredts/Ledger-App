@@ -117,7 +117,12 @@
           <option value="2">Forecast: 2 Years</option>
           <option value="5">Forecast: 5 Years</option>
           <option value="10">Forecast: Indefinite (10Y)</option>
+          <option value="custom">Forecast: Specific Date&hellip;</option>
         </select>
+      </div>
+
+      <div id="forecastCustomDateContainer" class="hidden">
+        <input type="date" id="forecastCustomDateInput" onchange="setForecastCustomDate(this.value)" class="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs font-bold text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
       </div>
 
       <div id="forecastCalView" class="space-y-3">
@@ -225,7 +230,7 @@
       <div class="flex justify-between items-center">
         <h2 class="text-base font-bold text-gray-900">Budgets & Categories</h2>
         <div class="flex gap-2">
-          <button onclick="openModal('categoryModal')" class="bg-gray-200 border border-gray-300 px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-300">+ Category</button>
+          <button onclick="openCategoryModal()" class="bg-gray-200 border border-gray-300 px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-300">+ Category</button>
           <button onclick="openModal('budgetModal')" class="bg-amber-500 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-amber-600">+ Budget</button>
         </div>
       </div>
@@ -734,6 +739,10 @@
           <input id="debtIncludeInForecast" type="checkbox" checked class="w-4 h-4 text-amber-500 focus:ring-amber-500">
           <label for="debtIncludeInForecast" class="text-gray-700">Project monthly payments onto Main Calendar Forecast</label>
         </div>
+        <div class="flex items-center gap-2">
+          <input id="debtAutopay" type="checkbox" class="w-4 h-4 text-amber-500 focus:ring-amber-500">
+          <label for="debtAutopay" class="text-gray-700">Autopay — automatically mark this debt's payments (and interest charges) Paid once their date passes</label>
+        </div>
         <button type="submit" class="w-full bg-amber-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-amber-600">Save Debt Account</button>
       </form>
     </div>
@@ -747,6 +756,13 @@
         <button onclick="closeModal('budgetModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
       </div>
       <form onsubmit="saveBudget(event)" class="space-y-3">
+        <div>
+          <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Track</label>
+          <select id="budType" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
+            <option value="expense">Expenses (spending limit)</option>
+            <option value="income">Income (earnings goal)</option>
+          </select>
+        </div>
         <select id="budCategory" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
         <input id="budLimit" type="number" step="0.01" placeholder="Monthly Limit ($)" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
         <button type="submit" class="w-full bg-amber-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-amber-600">Save Budget</button>
@@ -758,10 +774,11 @@
   <div id="categoryModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
     <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-xl">
       <div class="flex justify-between items-center">
-        <h3 class="font-bold text-base text-gray-900">Add Custom Category</h3>
+        <h3 id="categoryModalTitle" class="font-bold text-base text-gray-900">Add Custom Category</h3>
         <button onclick="closeModal('categoryModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
       </div>
       <form onsubmit="saveCategory(event)" class="space-y-3 text-xs">
+        <input id="catId" type="hidden">
         <input id="catName" type="text" placeholder="Category Name" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
         <div class="grid grid-cols-2 gap-2">
           <div>
@@ -782,7 +799,10 @@
             </select>
           </div>
         </div>
-        <button type="submit" class="w-full bg-amber-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-amber-600">Create Category</button>
+        <div class="flex gap-2">
+          <button type="submit" id="categoryModalSubmitBtn" class="flex-1 bg-amber-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-amber-600">Create Category</button>
+          <button type="button" id="categoryModalDeleteBtn" onclick="deleteCategory()" class="hidden bg-red-50 border border-red-200 text-red-600 font-semibold py-2 px-3 rounded-lg text-xs hover:bg-red-100">Delete</button>
+        </div>
       </form>
     </div>
   </div>
@@ -866,6 +886,7 @@
     let currentMonthDate = new Date();
     let selectedDateStr = formatLocalDate(new Date());
     let forecastYears = 1;
+    let forecastCustomDate = null;
     let chartInstance = null;
 
     let selectedLiquidAccountIds = ['all']; 
@@ -1173,8 +1194,46 @@
     }
 
     function updateForecastRange(val) {
+      const customContainer = document.getElementById('forecastCustomDateContainer');
+      if (val === 'custom') {
+        customContainer.classList.remove('hidden');
+        const dateInput = document.getElementById('forecastCustomDateInput');
+        if (!dateInput.value) {
+          const d = new Date();
+          d.setFullYear(d.getFullYear() + 1);
+          dateInput.value = formatLocalDate(d);
+        }
+        forecastCustomDate = dateInput.value;
+        renderApp();
+        return;
+      }
+      customContainer.classList.add('hidden');
+      forecastCustomDate = null;
       forecastYears = parseFloat(val);
       renderApp();
+    }
+
+    function setForecastCustomDate(val) {
+      if (!val) return;
+      forecastCustomDate = val;
+      renderApp();
+    }
+
+    // Returns the Date the forecast should project out to, honoring a
+    // specific custom end date when one has been chosen instead of a preset.
+    function getForecastEndDate() {
+      if (forecastCustomDate) return parseLocalDate(forecastCustomDate);
+      const d = new Date();
+      d.setMonth(d.getMonth() + Math.round(forecastYears * 12));
+      return d;
+    }
+
+    // Human-readable label for the forecast range, e.g. "1 YR" or a specific date.
+    function getForecastRangeLabel() {
+      if (forecastCustomDate) {
+        return parseLocalDate(forecastCustomDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+      return forecastYears < 1 ? (forecastYears * 12) + ' MO' : forecastYears + ' YR';
     }
 
     function changeMonth(delta) {
@@ -1607,19 +1666,19 @@
 
     function renderApp() {
       resetDebtBalanceCache();
-      const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + Math.round(forecastYears * 12));
+      const endDate = getForecastEndDate();
       const netWorth = calculateBalanceUpToDate(formatLocalDate(endDate));
+      const rangeLabel = getForecastRangeLabel();
       
       const labelEl = document.getElementById('netWorthLabel');
       const displayEl = document.getElementById('netWorthDisplay');
 
       if (activeForecastMode === 'debt') {
-        labelEl.textContent = `TOTAL DEBT BALANCE (${forecastYears < 1 ? forecastYears*12 + ' MO' : forecastYears + ' YR'})`;
+        labelEl.textContent = `TOTAL DEBT BALANCE (${rangeLabel})`;
         displayEl.textContent = fmtMoney(Math.abs(netWorth));
         displayEl.className = 'text-2xl font-mono font-bold text-red-600';
       } else {
-        labelEl.textContent = `FORECASTED NET WORTH (${forecastYears < 1 ? forecastYears*12 + ' MO' : forecastYears + ' YR'})`;
+        labelEl.textContent = `FORECASTED NET WORTH (${rangeLabel})`;
         displayEl.textContent = fmtMoney(netWorth);
         displayEl.className = netWorth < 0 ? 'text-2xl font-mono font-bold text-red-600' : 'text-2xl font-mono font-bold text-emerald-700';
       }
@@ -1860,6 +1919,39 @@
           cur.setDate(cur.getDate() + 1);
         }
       });
+
+      // Debts with Autopay enabled: auto-clear their scheduled payment and
+      // interest-charge occurrences as Paid once the date has passed.
+      resetDebtBalanceCache();
+      state.debts.forEach(d => {
+        if (!d.autopay || !d.startDate) return;
+        const debtStart = parseLocalDate(d.startDate);
+        const debtEnd = d.endDate ? parseLocalDate(d.endDate) : null;
+        const cur = new Date(debtStart);
+        while (cur <= today) {
+          if (!debtEnd || cur <= debtEnd) {
+            const k = formatLocalDate(cur);
+            const paidOff = isDebtPaidOffBefore(d, cur);
+
+            if (!paidOff && d.dueDate && cur.getDate() === parseInt(d.dueDate)) {
+              const payKey = `debt-pay-${d.id}_${k}`;
+              const isSkipped = state.exceptions[payKey] && state.exceptions[payKey].skipped;
+              if (!isSkipped && state.paidStatus[payKey] === undefined) {
+                state.paidStatus[payKey] = true;
+              }
+            }
+
+            if (!paidOff && d.closingDate && cur.getDate() === parseInt(d.closingDate)) {
+              const intKey = `debt-int-${d.id}_${k}`;
+              if (state.paidStatus[intKey] === undefined && calculateDebtInterestForDate(d, cur) > 0) {
+                state.paidStatus[intKey] = true;
+              }
+            }
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+      });
+      resetDebtBalanceCache();
     }
 
     function togglePaid(identifier) {
@@ -2099,6 +2191,7 @@
                     <div class="font-bold text-gray-900 text-sm flex items-center gap-2">
                       ${d.name}
                       ${utilPct !== null ? `<span class="text-[9px] px-2 py-0.5 rounded-full font-bold ${utilPct > 30 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">${utilPct}% Util</span>` : ''}
+                      ${d.autopay ? '<span class="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">AUTOPAY</span>' : ''}
                     </div>
                     <div class="text-[10px] text-gray-500 font-mono mt-0.5">
                       Starts: ${startDateStr} ${d.endDate ? ` · Ends: ${d.endDate}` : ''} · APR: ${d.apr}%
@@ -2152,9 +2245,9 @@
 
     function renderBudgetsAndCategories() {
       document.getElementById('categoriesList').innerHTML = state.categories.map(c => `
-        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs text-white font-medium shadow-sm" style="background-color: ${c.color}">
-          <i class="fa-solid ${c.icon}"></i> ${c.name}
-        </span>
+        <button onclick="openCategoryModal('${c.id}')" title="Edit category" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs text-white font-medium shadow-sm hover:opacity-90 transition-opacity" style="background-color: ${c.color}">
+          <i class="fa-solid ${c.icon}"></i> ${c.name} <i class="fa-solid fa-pen text-[9px] opacity-80 ml-0.5"></i>
+        </button>
       `).join('');
 
       const list = document.getElementById('budgetsList');
@@ -2181,16 +2274,17 @@
       }
 
       list.innerHTML = state.budgets.map(b => {
+        const bType = b.type || 'expense';
         const matchingTxs = state.transactions.filter(t => {
           const tCat = t.category || 'Unassigned';
-          if (tCat !== b.category || t.type !== 'expense') return false;
+          if (tCat !== b.category || t.type !== bType) return false;
           if (startDateStr && t.date < startDateStr) return false;
           if (endDateStr && t.date > endDateStr) return false;
           return true;
         });
-        const manualSpent = matchingTxs.reduce((s, t) => s + t.amount, 0);
+        const manualTotal = matchingTxs.reduce((s, t) => s + t.amount, 0);
 
-        let recurringSpent = 0;
+        let recurringTotal = 0;
         if (startDateStr && endDateStr) {
           let cur = parseLocalDate(startDateStr);
           const endD = parseLocalDate(endDateStr);
@@ -2199,30 +2293,38 @@
             const dayRecs = getRecurringForDate(k);
             dayRecs.forEach(r => {
               const rCat = r.category || 'Unassigned';
-              if (r.type === 'expense' && (rCat === b.category || (!r.category && b.category === 'General'))) {
-                recurringSpent += r.amount;
+              if (r.type === bType && (rCat === b.category || (!r.category && b.category === 'General'))) {
+                recurringTotal += r.amount;
               }
             });
             cur.setDate(cur.getDate() + 1);
           }
         }
 
-        const spent = manualSpent + recurringSpent;
-        const pct = b.limit > 0 ? Math.min(100, Math.round((spent / b.limit) * 100)) : 0;
+        const total = manualTotal + recurringTotal;
+        const pct = b.limit > 0 ? Math.min(100, Math.round((total / b.limit) * 100)) : 0;
+        const isIncome = bType === 'income';
+        const barColor = isIncome ? (pct >= 100 ? 'bg-emerald-500' : 'bg-amber-500') : (pct >= 100 ? 'bg-red-500' : 'bg-amber-500');
+        const footerText = isIncome
+          ? `${pct}% of goal reached (${fmtMoney(Math.max(0, b.limit - total))} to go)`
+          : `${pct}% spent (${fmtMoney(Math.max(0, b.limit - total))} remaining)`;
 
         return `
           <div class="p-4 rounded-xl bg-white border border-gray-300 space-y-2 text-xs shadow-sm">
             <div class="flex justify-between items-center">
-              <span class="font-bold text-gray-900">${b.category}</span>
+              <span class="font-bold text-gray-900 flex items-center gap-1.5">
+                ${b.category}
+                <span class="text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase ${isIncome ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}">${bType}</span>
+              </span>
               <div class="flex items-center gap-2">
-                <span class="font-mono font-bold text-amber-700">${fmtMoney(spent)} / ${fmtMoney(b.limit)}</span>
+                <span class="font-mono font-bold text-amber-700">${fmtMoney(total)} / ${fmtMoney(b.limit)}</span>
                 <button onclick="deleteBudget('${b.id}')" class="text-gray-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>
               </div>
             </div>
             <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden border border-gray-200">
-              <div class="bg-amber-500 h-full" style="width: ${pct}%"></div>
+              <div class="${barColor} h-full" style="width: ${pct}%"></div>
             </div>
-            <div class="text-[10px] text-gray-500">${pct}% spent (${fmtMoney(Math.max(0, b.limit - spent))} remaining)</div>
+            <div class="text-[10px] text-gray-500">${footerText}</div>
           </div>
         `;
       }).join('');
@@ -2534,6 +2636,7 @@
         document.getElementById('debtDueDate').value = d.dueDate || 1;
         document.getElementById('debtAnnualFee').value = d.annualFee || 0;
         document.getElementById('debtIncludeInForecast').checked = d.includeInForecast;
+        document.getElementById('debtAutopay').checked = !!d.autopay;
         
         document.getElementById('debtEditScopeContainer').classList.remove('hidden');
         document.getElementById('debtEditScope').value = 'entire';
@@ -2555,6 +2658,7 @@
         document.getElementById('debtClosingDate').value = '';
         document.getElementById('debtDueDate').value = '1';
         document.getElementById('debtAnnualFee').value = '0';
+        document.getElementById('debtAutopay').checked = false;
 
         document.getElementById('debtEditScopeContainer').classList.add('hidden');
       }
@@ -2585,7 +2689,8 @@
         closingDate: parseInt(document.getElementById('debtClosingDate').value) || null,
         dueDate: parseInt(document.getElementById('debtDueDate').value) || 1,
         annualFee: parseFloat(document.getElementById('debtAnnualFee').value) || 0,
-        includeInForecast: document.getElementById('debtIncludeInForecast').checked
+        includeInForecast: document.getElementById('debtIncludeInForecast').checked,
+        autopay: document.getElementById('debtAutopay').checked
       };
 
       if (id) {
@@ -2633,13 +2738,14 @@
     function saveBudget(e) {
       e.preventDefault();
       const category = document.getElementById('budCategory').value;
+      const type = document.getElementById('budType').value || 'expense';
       const limit = parseFloat(document.getElementById('budLimit').value) || 0;
 
-      const existing = state.budgets.find(b => b.category === category);
+      const existing = state.budgets.find(b => b.category === category && (b.type || 'expense') === type);
       if (existing) {
         existing.limit = limit;
       } else {
-        state.budgets.push({ id: 'b-' + Date.now(), category, limit });
+        state.budgets.push({ id: 'b-' + Date.now(), category, type, limit });
       }
 
       closeModal('budgetModal');
@@ -2651,16 +2757,72 @@
       saveState();
     }
 
+    function openCategoryModal(id = null) {
+      const titleEl = document.getElementById('categoryModalTitle');
+      const submitBtn = document.getElementById('categoryModalSubmitBtn');
+      const deleteBtn = document.getElementById('categoryModalDeleteBtn');
+
+      if (id) {
+        const c = state.categories.find(x => x.id === id);
+        if (!c) return;
+        document.getElementById('catId').value = c.id;
+        document.getElementById('catName').value = c.name;
+        document.getElementById('catColor').value = c.color;
+        document.getElementById('catIcon').value = c.icon;
+        titleEl.textContent = 'Edit Category';
+        submitBtn.textContent = 'Save Changes';
+        deleteBtn.classList.remove('hidden');
+      } else {
+        document.getElementById('catId').value = '';
+        document.getElementById('catName').value = '';
+        document.getElementById('catColor').value = '#D97706';
+        document.getElementById('catIcon').value = 'fa-tag';
+        titleEl.textContent = 'Add Custom Category';
+        submitBtn.textContent = 'Create Category';
+        deleteBtn.classList.add('hidden');
+      }
+      openModal('categoryModal');
+    }
+
     function saveCategory(e) {
       e.preventDefault();
+      const id = document.getElementById('catId').value;
       const name = document.getElementById('catName').value.trim();
       const color = document.getElementById('catColor').value;
       const icon = document.getElementById('catIcon').value;
 
-      if (!state.categories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+      if (id) {
+        const cat = state.categories.find(c => c.id === id);
+        if (cat) {
+          const oldName = cat.name;
+          cat.name = name;
+          cat.color = color;
+          cat.icon = icon;
+
+          // Renaming a category is a name-string relationship elsewhere in the
+          // app (transactions/recurring rules/budgets store the category name,
+          // not the id) — cascade the rename so nothing gets silently orphaned.
+          if (oldName !== name) {
+            state.transactions.forEach(t => { if (t.category === oldName) t.category = name; });
+            state.recurring.forEach(r => { if (r.category === oldName) r.category = name; });
+            state.budgets.forEach(b => { if (b.category === oldName) b.category = name; });
+          }
+        }
+      } else if (!state.categories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
         state.categories.push({ id: 'cat-' + Date.now(), name, color, icon });
       }
 
+      closeModal('categoryModal');
+      saveState();
+    }
+
+    function deleteCategory() {
+      const id = document.getElementById('catId').value;
+      if (!id) return;
+      const cat = state.categories.find(c => c.id === id);
+      if (!cat) return;
+      if (!confirm(`Delete category "${cat.name}"? Existing transactions and budgets using it will keep the name as plain text, but it will no longer appear as a selectable category.`)) return;
+      state.categories = state.categories.filter(c => c.id !== id);
       closeModal('categoryModal');
       saveState();
     }
@@ -2673,7 +2835,8 @@
       const dataPoints = [];
 
       let cur = new Date();
-      const totalMonths = Math.round(forecastYears * 12);
+      const endDate = getForecastEndDate();
+      const totalMonths = Math.max(1, (endDate.getFullYear() - cur.getFullYear()) * 12 + (endDate.getMonth() - cur.getMonth()));
 
       for (let i = 0; i <= totalMonths; i++) {
         labels.push(cur.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
