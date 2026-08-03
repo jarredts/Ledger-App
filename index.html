@@ -101,31 +101,46 @@
         </button>
       </div>
 
-      <div class="flex gap-1 bg-gray-200 p-1 rounded-xl border border-gray-300">
-        <button id="btnCalView" onclick="setSubView('cal')" class="flex-1 py-1 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm">Calendar</button>
-        <button id="btnTrendView" onclick="setSubView('trend')" class="flex-1 py-1 rounded-lg text-xs font-bold text-gray-600 hover:text-gray-900">Trend</button>
-      </div>
-
-      <div class="grid grid-cols-2 gap-2">
-        <button onclick="openModal('multiAccountFilterModal')" class="bg-white border border-gray-300 rounded-xl p-2 text-xs font-medium text-gray-800 shadow-sm flex justify-between items-center text-left">
-          <span id="multiAccountFilterLabel" class="truncate">All Cash Accounts Combined</span>
-          <i class="fa-solid fa-chevron-down text-gray-500 text-[10px] ml-1"></i>
+      <div class="flex items-stretch gap-1.5">
+        <button onclick="toggleForecastFilters()" class="flex-1 flex items-center justify-between gap-2 bg-white border border-gray-300 rounded-xl px-3 py-2 shadow-sm text-left">
+          <div class="min-w-0">
+            <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Filters</div>
+            <div id="filtersSummaryLabel" class="text-xs font-medium text-gray-800 truncate">All Cash Accounts Combined &middot; 1 Year</div>
+          </div>
+          <i id="filtersDrawerChevron" class="fa-solid fa-chevron-down text-gray-400 text-[11px] transition-transform shrink-0"></i>
         </button>
-        <select id="forecastRangeSelect" onchange="updateForecastRange(this.value)" class="select-custom bg-white border border-gray-300 rounded-xl p-2 text-xs font-bold text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
-          <option value="0.5">Forecast: 6 Months</option>
-          <option value="1" selected>Forecast: 1 Year</option>
-          <option value="2">Forecast: 2 Years</option>
-          <option value="5">Forecast: 5 Years</option>
-          <option value="10">Forecast: Indefinite (10Y)</option>
-          <option value="custom">Forecast: Specific Date&hellip;</option>
-        </select>
+        <div class="flex gap-1 bg-gray-200 p-1 rounded-xl border border-gray-300 shrink-0">
+          <button id="btnCalView" onclick="setSubView('cal')" title="Calendar view" class="w-9 h-9 flex items-center justify-center rounded-lg text-sm bg-amber-500 text-white shadow-sm">
+            <i class="fa-solid fa-calendar-days"></i>
+          </button>
+          <button id="btnTrendView" onclick="setSubView('trend')" title="Trend view" class="w-9 h-9 flex items-center justify-center rounded-lg text-sm text-gray-600 hover:text-gray-900">
+            <i class="fa-solid fa-chart-line"></i>
+          </button>
+        </div>
       </div>
 
-      <div id="forecastCustomDateContainer" class="hidden">
-        <label class="flex items-center gap-2 bg-amber-500 border border-amber-500 rounded-xl p-2.5 shadow-sm focus-within:ring-2 focus-within:ring-amber-300">
-          <i class="fa-solid fa-calendar-day text-white text-[11px]"></i>
-          <input type="date" id="forecastCustomDateInput" onchange="setForecastCustomDate(this.value)" class="flex-1 bg-transparent border-none p-0 text-xs font-bold text-white placeholder-white focus:ring-0 focus:outline-none [color-scheme:dark]">
-        </label>
+      <div id="forecastFiltersDrawer" class="hidden space-y-2">
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="openModal('multiAccountFilterModal')" class="bg-white border border-gray-300 rounded-xl p-2 text-xs font-medium text-gray-800 shadow-sm flex justify-between items-center text-left">
+            <span id="multiAccountFilterLabel" class="truncate">All Cash Accounts Combined</span>
+            <i class="fa-solid fa-chevron-down text-gray-500 text-[10px] ml-1"></i>
+          </button>
+          <select id="forecastRangeSelect" onchange="updateForecastRange(this.value)" class="select-custom bg-white border border-gray-300 rounded-xl p-2 text-xs font-bold text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
+            <option value="0.5">Forecast: 6 Months</option>
+            <option value="1" selected>Forecast: 1 Year</option>
+            <option value="2">Forecast: 2 Years</option>
+            <option value="5">Forecast: 5 Years</option>
+            <option value="10">Forecast: Indefinite (10Y)</option>
+            <option value="custom">Forecast: Specific Date&hellip;</option>
+          </select>
+        </div>
+
+        <div id="forecastCustomDateContainer" class="hidden">
+          <label class="flex items-center gap-2 bg-amber-500 border border-amber-500 rounded-xl p-2.5 shadow-sm focus-within:ring-2 focus-within:ring-amber-300">
+            <i class="fa-solid fa-calendar-day text-white text-[11px]"></i>
+            <input type="date" id="forecastCustomDateInput" onchange="setForecastCustomDate(this.value)" class="flex-1 bg-transparent border-none p-0 text-xs font-bold text-white placeholder-white focus:ring-0 focus:outline-none [color-scheme:dark]">
+          </label>
+        </div>
       </div>
 
       <div id="forecastCalView" class="space-y-3">
@@ -1309,15 +1324,22 @@
 
       if (view === 'cal') {
         cal.classList.remove('hidden'); trend.classList.add('hidden');
-        bCal.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm';
-        bTrend.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:text-gray-900';
+        bCal.className = 'w-9 h-9 flex items-center justify-center rounded-lg text-sm bg-amber-500 text-white shadow-sm';
+        bTrend.className = 'w-9 h-9 flex items-center justify-center rounded-lg text-sm text-gray-600 hover:text-gray-900';
       } else {
         cal.classList.add('hidden'); trend.innerHTML = '<canvas id="forecastChart" class="w-full h-64"></canvas>'; trend.classList.remove('hidden');
-        bTrend.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm';
-        bCal.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:text-gray-900';
+        bTrend.className = 'w-9 h-9 flex items-center justify-center rounded-lg text-sm bg-amber-500 text-white shadow-sm';
+        bCal.className = 'w-9 h-9 flex items-center justify-center rounded-lg text-sm text-gray-600 hover:text-gray-900';
         renderChart();
       }
       saveViewState();
+    }
+
+    function toggleForecastFilters() {
+      const drawer = document.getElementById('forecastFiltersDrawer');
+      const chevron = document.getElementById('filtersDrawerChevron');
+      drawer.classList.toggle('hidden');
+      chevron.classList.toggle('rotate-180');
     }
 
     function updateForecastRange(val) {
@@ -1975,6 +1997,9 @@
       } else {
         filterLabel.textContent = `${selectedArr.length} Accounts Selected`;
       }
+
+      const filtersSummary = document.getElementById('filtersSummaryLabel');
+      if (filtersSummary) filtersSummary.textContent = `${filterLabel.textContent} \u00b7 ${rangeLabel}`;
 
       const txSelect = document.getElementById('txAccount');
       const recSelect = document.getElementById('recAccount');
