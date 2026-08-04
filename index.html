@@ -33,6 +33,14 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    // Applied here (before body paints) so there's no flash of light mode on load.
+    try {
+      if (localStorage.getItem('ledger_dark_mode') === '1') {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) { /* ignore */ }
+  </script>
   <style>
     body { 
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
@@ -48,6 +56,63 @@
       -webkit-appearance: none;
       appearance: none;
     }
+
+    /* ---- DARK MODE ----
+       Tailwind CDN classes are single utility selectors, so an html.dark-scoped
+       override (two classes = higher specificity) wins without needing to touch
+       every element's class list individually. Covers the palette actually used
+       across the app. color-scheme: dark also fixes native date/number inputs,
+       checkboxes, and scrollbars for free. */
+    html.dark { color-scheme: dark; }
+    html.dark body { background-color: #0f172a; color: #e2e8f0; }
+
+    html.dark .bg-white { background-color: #1e293b; }
+    html.dark .bg-gray-50 { background-color: #172033; }
+    html.dark .bg-gray-100 { background-color: #1e293b; }
+    html.dark .bg-gray-200 { background-color: #334155; }
+    html.dark .bg-gray-300 { background-color: #475569; }
+    html.dark .bg-amber-50 { background-color: #451a03; }
+    html.dark .bg-amber-100 { background-color: #78350f; }
+    html.dark .bg-amber-200 { background-color: #92400e; }
+    html.dark .bg-emerald-50 { background-color: #052e2b; }
+    html.dark .bg-emerald-100 { background-color: #064e3b; }
+    html.dark .bg-emerald-200 { background-color: #065f46; }
+    html.dark .bg-red-50 { background-color: #450a0a; }
+    html.dark .bg-red-100 { background-color: #7f1d1d; }
+    html.dark .bg-amber-50\/60 { background-color: rgba(120,53,15,0.45); }
+    html.dark .bg-red-50\/50 { background-color: rgba(127,29,29,0.45); }
+    html.dark .bg-gray-200\/40 { background-color: rgba(51,65,85,0.45); }
+    html.dark .bg-amber-100\/80 { background-color: rgba(120,53,15,0.7); }
+    html.dark .bg-emerald-50\/40 { background-color: rgba(6,78,59,0.4); }
+
+    html.dark .text-gray-900 { color: #f1f5f9; }
+    html.dark .text-gray-800 { color: #e2e8f0; }
+    html.dark .text-gray-700 { color: #cbd5e1; }
+    html.dark .text-gray-600 { color: #94a3b8; }
+    html.dark .text-gray-500 { color: #94a3b8; }
+    html.dark .text-gray-400 { color: #64748b; }
+    html.dark .text-gray-200 { color: #334155; }
+    html.dark .text-amber-700 { color: #fbbf24; }
+    html.dark .text-amber-800 { color: #fcd34d; }
+    html.dark .text-amber-900 { color: #fde68a; }
+    html.dark .text-emerald-700 { color: #34d399; }
+    html.dark .text-emerald-800 { color: #6ee7b7; }
+    html.dark .text-red-600 { color: #f87171; }
+    html.dark .text-red-700 { color: #fca5a5; }
+
+    html.dark .border-gray-100 { border-color: #1e293b; }
+    html.dark .border-gray-200 { border-color: #334155; }
+    html.dark .border-gray-300 { border-color: #475569; }
+    html.dark .border-amber-200 { border-color: #92400e; }
+    html.dark .border-amber-300 { border-color: #b45309; }
+    html.dark .border-emerald-200 { border-color: #065f46; }
+    html.dark .border-red-200 { border-color: #7f1d1d; }
+
+    html.dark .shadow-sm, html.dark .shadow-md, html.dark .shadow-lg, html.dark .shadow-xl {
+      box-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.4);
+    }
+    html.dark ::-webkit-scrollbar { background: #0f172a; }
+    html.dark ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
   </style>
 </head>
 <body class="min-h-screen pb-24 text-gray-800 bg-gray-100">
@@ -300,6 +365,7 @@
           <button id="btnStratCustom" onclick="setPayoffStrategy('custom')" class="flex-1 py-1.5 rounded-lg text-xs font-bold">Custom</button>
         </div>
         <p id="payoffStrategyHint" class="text-[10px] text-gray-400 px-1"></p>
+        <p id="payoffPinnedHint" class="hidden text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5"></p>
 
         <!-- Headline debt-free date -->
         <div class="p-4 rounded-xl bg-white border border-gray-300 shadow-sm text-center">
@@ -450,84 +516,128 @@
 
   <!-- Settings Modal -->
   <div id="settingsModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto shadow-xl">
+    <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-3 max-h-[85vh] overflow-y-auto shadow-xl">
       <div class="flex justify-between items-center">
         <h3 class="font-bold text-base text-gray-900">Settings & Data Management</h3>
         <button onclick="closeModal('settingsModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
       </div>
-      <div class="space-y-3 text-xs">
+
+      <div class="space-y-2 text-xs">
         <button onclick="closeModal('settingsModal'); openModal('guideModal')" class="w-full bg-amber-50 border border-amber-200 text-amber-700 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-amber-100">
           <i class="fa-solid fa-book-open"></i> User Guide
         </button>
-        <button onclick="exportDataJSON()" class="w-full bg-gray-100 border border-gray-300 text-gray-800 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-200">
-          <i class="fa-solid fa-download"></i> Backup Data (Export JSON)
-        </button>
-        <div>
-          <label class="block mb-1 font-semibold text-gray-700">Restore Data from JSON</label>
-          <input type="file" id="importFileInput" onchange="importDataJSON(event)" accept=".json" class="w-full text-xs text-gray-600 bg-gray-100 rounded-lg p-2 border border-gray-300">
-        </div>
-        <hr class="border-gray-200">
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="font-semibold text-gray-700">Cloud Sync (optional)</label>
-            <span id="syncEnabledBadge" class="hidden text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold uppercase">Enabled</span>
-          </div>
-          <p class="text-[11px] text-gray-500 mb-2">Off by default and never shared — this only works if you set up your own free Firebase project and paste its config below. Nothing here is sent anywhere unless you fill this in. <button type="button" onclick="closeModal('settingsModal'); openModal('guideModal')" class="underline text-amber-600">See the guide</button> for setup steps.</p>
-          <textarea id="syncConfigInput" placeholder='Paste your Firebase config here, e.g. { "apiKey": "...", "authDomain": "...", "projectId": "...", ... }' class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-[11px] font-mono text-gray-800 h-20"></textarea>
-          <input id="syncCodeInput" type="text" placeholder="Your private sync code (same on every device)" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800 mt-2">
-          <div class="flex gap-2 mt-2">
-            <button onclick="enableCloudSync()" class="flex-1 bg-emerald-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-emerald-600">Enable Sync</button>
-            <button onclick="disableCloudSync()" class="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs border border-gray-300 hover:bg-gray-200">Disable</button>
-            <button onclick="manualSyncNow()" class="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs border border-gray-300 hover:bg-gray-200" title="Push/pull now"><i class="fa-solid fa-arrows-rotate"></i></button>
-          </div>
-          <div id="syncStatusLine" class="text-[10px] text-gray-400 mt-1"></div>
-        </div>
-        <hr class="border-gray-200">
-        <div>
-          <label class="font-semibold text-gray-700 block mb-1">Data Retention</label>
-          <p id="retentionStatusLine" class="text-[11px] text-gray-500 mb-2"></p>
+
+        <!-- Appearance: always visible, not tucked in an accordion, since it's a quick everyday toggle -->
+        <div class="flex items-center justify-between bg-gray-50 border border-gray-300 rounded-xl p-3">
           <div class="flex items-center gap-2">
-            <span class="text-gray-600">Keep the last</span>
-            <input id="retentionMonthsInput" type="number" min="1" value="3" class="w-14 bg-gray-50 border border-gray-300 rounded-lg p-1.5 text-center text-gray-800">
-            <span class="text-gray-600">months of transactions active</span>
+            <i class="fa-solid fa-moon text-gray-500"></i>
+            <span class="font-semibold text-gray-700">Dark Mode</span>
           </div>
-          <button onclick="archiveOldTransactions()" class="w-full mt-2 bg-gray-100 border border-gray-300 text-gray-800 py-2 rounded-xl font-semibold hover:bg-gray-200">
-            Archive Older Transactions Now
+          <button id="darkModeToggleBtn" onclick="toggleDarkMode()" class="w-11 h-6 rounded-full bg-gray-300 relative transition-colors" title="Toggle dark mode">
+            <span id="darkModeToggleDot" class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform"></span>
           </button>
-          <p class="text-[10px] text-gray-400 mt-1">Older one-time transactions get folded into each account's balance (your totals don't change) and moved out of the active Log so things stay fast. They're kept in your data — export a backup first if you want a full record you can browse later. Recurring bills/paychecks and debt history aren't affected.</p>
         </div>
-        <hr class="border-gray-200">
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="font-semibold text-gray-700">Payment Reminders</label>
-            <span id="reminderEnabledBadge" class="hidden text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold uppercase">On</span>
+
+        <details class="bg-gray-50 border border-gray-300 rounded-xl overflow-hidden group">
+          <summary class="p-3 font-semibold text-gray-700 cursor-pointer list-none flex items-center justify-between">
+            <span class="flex items-center gap-2"><i class="fa-solid fa-database text-gray-500"></i> Backup & Restore</span>
+            <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 group-open:rotate-180 transition-transform"></i>
+          </summary>
+          <div class="p-3 pt-0 space-y-2">
+            <button onclick="exportDataJSON()" class="w-full bg-white border border-gray-300 text-gray-800 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-100">
+              <i class="fa-solid fa-download"></i> Backup Data (Export JSON)
+            </button>
+            <div>
+              <label class="block mb-1 font-semibold text-gray-700">Restore Data from JSON</label>
+              <input type="file" id="importFileInput" onchange="importDataJSON(event)" accept=".json" class="w-full text-xs text-gray-600 bg-white rounded-lg p-2 border border-gray-300">
+            </div>
           </div>
-          <p class="text-[11px] text-gray-500 mb-2">Notifies you about upcoming bills, recurring expenses, and debt payments when you open the app — it checks on open, not in the background, so it works best if you (or your wife) open the app most days.</p>
-          <button id="reminderPermissionBtn" onclick="enablePaymentReminders()" class="w-full bg-emerald-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-emerald-600 mb-2">
-            Turn On Reminders
-          </button>
-          <div class="grid grid-cols-2 gap-1.5">
-            <label class="flex items-center gap-1.5 bg-gray-50 border border-gray-300 rounded-lg p-2 cursor-pointer">
-              <input type="checkbox" value="0" onchange="toggleReminderOffset(this)" class="reminderOffsetChk w-3.5 h-3.5 text-amber-500 rounded"> <span>Day of</span>
-            </label>
-            <label class="flex items-center gap-1.5 bg-gray-50 border border-gray-300 rounded-lg p-2 cursor-pointer">
-              <input type="checkbox" value="1" onchange="toggleReminderOffset(this)" class="reminderOffsetChk w-3.5 h-3.5 text-amber-500 rounded"> <span>1 day before</span>
-            </label>
-            <label class="flex items-center gap-1.5 bg-gray-50 border border-gray-300 rounded-lg p-2 cursor-pointer">
-              <input type="checkbox" value="2" onchange="toggleReminderOffset(this)" class="reminderOffsetChk w-3.5 h-3.5 text-amber-500 rounded"> <span>2 days before</span>
-            </label>
-            <label class="flex items-center gap-1.5 bg-gray-50 border border-gray-300 rounded-lg p-2 cursor-pointer">
-              <input type="checkbox" value="3" onchange="toggleReminderOffset(this)" class="reminderOffsetChk w-3.5 h-3.5 text-amber-500 rounded"> <span>3 days before</span>
-            </label>
+        </details>
+
+        <details class="bg-gray-50 border border-gray-300 rounded-xl overflow-hidden group">
+          <summary class="p-3 font-semibold text-gray-700 cursor-pointer list-none flex items-center justify-between">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-cloud text-gray-500"></i> Cloud Sync (optional)
+              <span id="syncEnabledBadge" class="hidden text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold uppercase">Enabled</span>
+            </span>
+            <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 group-open:rotate-180 transition-transform"></i>
+          </summary>
+          <div class="p-3 pt-0">
+            <p class="text-[11px] text-gray-500 mb-2">Off by default and never shared — this only works if you set up your own free Firebase project and paste its config below. Nothing here is sent anywhere unless you fill this in. <button type="button" onclick="closeModal('settingsModal'); openModal('guideModal')" class="underline text-amber-600">See the guide</button> for setup steps.</p>
+            <textarea id="syncConfigInput" placeholder='Paste your Firebase config here, e.g. { "apiKey": "...", "authDomain": "...", "projectId": "...", ... }' class="w-full bg-white border border-gray-300 rounded-lg p-2 text-[11px] font-mono text-gray-800 h-20"></textarea>
+            <input id="syncCodeInput" type="text" placeholder="Your private sync code (same on every device)" class="w-full bg-white border border-gray-300 rounded-lg p-2 text-xs text-gray-800 mt-2">
+            <div class="flex gap-2 mt-2">
+              <button onclick="enableCloudSync()" class="flex-1 bg-emerald-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-emerald-600">Enable Sync</button>
+              <button onclick="disableCloudSync()" class="bg-white text-gray-600 px-3 py-2 rounded-lg text-xs border border-gray-300 hover:bg-gray-100">Disable</button>
+              <button onclick="manualSyncNow()" class="bg-white text-gray-600 px-3 py-2 rounded-lg text-xs border border-gray-300 hover:bg-gray-100" title="Push/pull now"><i class="fa-solid fa-arrows-rotate"></i></button>
+            </div>
+            <div id="syncStatusLine" class="text-[10px] text-gray-400 mt-1"></div>
           </div>
-        </div>
-        <hr class="border-gray-200">
-        <button onclick="resetAppToDemo()" class="w-full bg-amber-50 text-amber-700 border border-amber-200 py-2 rounded-xl font-semibold hover:bg-amber-100">
-          Reload Anonymous Demo Data
-        </button>
-        <button onclick="clearAllDataWithPrompt()" class="w-full bg-red-50 text-red-600 border border-red-200 py-2 rounded-xl font-semibold hover:bg-red-100">
-          Reset All Data (Clear Everything)
-        </button>
+        </details>
+
+        <details class="bg-gray-50 border border-gray-300 rounded-xl overflow-hidden group">
+          <summary class="p-3 font-semibold text-gray-700 cursor-pointer list-none flex items-center justify-between">
+            <span class="flex items-center gap-2"><i class="fa-solid fa-box-archive text-gray-500"></i> Data Retention</span>
+            <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 group-open:rotate-180 transition-transform"></i>
+          </summary>
+          <div class="p-3 pt-0">
+            <p id="retentionStatusLine" class="text-[11px] text-gray-500 mb-2"></p>
+            <div class="flex items-center gap-2">
+              <span class="text-gray-600">Keep the last</span>
+              <input id="retentionMonthsInput" type="number" min="1" value="3" class="w-14 bg-white border border-gray-300 rounded-lg p-1.5 text-center text-gray-800">
+              <span class="text-gray-600">months of transactions active</span>
+            </div>
+            <button onclick="archiveOldTransactions()" class="w-full mt-2 bg-white border border-gray-300 text-gray-800 py-2 rounded-xl font-semibold hover:bg-gray-100">
+              Archive Older Transactions Now
+            </button>
+            <p class="text-[10px] text-gray-400 mt-1">Older one-time transactions get folded into each account's balance (your totals don't change) and moved out of the active Log so things stay fast. They're kept in your data — export a backup first if you want a full record you can browse later. Recurring bills/paychecks and debt history aren't affected.</p>
+          </div>
+        </details>
+
+        <details class="bg-gray-50 border border-gray-300 rounded-xl overflow-hidden group">
+          <summary class="p-3 font-semibold text-gray-700 cursor-pointer list-none flex items-center justify-between">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-bell text-gray-500"></i> Payment Reminders
+              <span id="reminderEnabledBadge" class="hidden text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold uppercase">On</span>
+            </span>
+            <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 group-open:rotate-180 transition-transform"></i>
+          </summary>
+          <div class="p-3 pt-0">
+            <p class="text-[11px] text-gray-500 mb-2">Notifies you about upcoming bills, recurring expenses, and debt payments when you open the app — it checks on open, not in the background, so it works best if you (or your wife) open the app most days.</p>
+            <button id="reminderPermissionBtn" onclick="enablePaymentReminders()" class="w-full bg-emerald-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-emerald-600 mb-2">
+              Turn On Reminders
+            </button>
+            <div class="grid grid-cols-2 gap-1.5">
+              <label class="flex items-center gap-1.5 bg-white border border-gray-300 rounded-lg p-2 cursor-pointer">
+                <input type="checkbox" value="0" onchange="toggleReminderOffset(this)" class="reminderOffsetChk w-3.5 h-3.5 text-amber-500 rounded"> <span>Day of</span>
+              </label>
+              <label class="flex items-center gap-1.5 bg-white border border-gray-300 rounded-lg p-2 cursor-pointer">
+                <input type="checkbox" value="1" onchange="toggleReminderOffset(this)" class="reminderOffsetChk w-3.5 h-3.5 text-amber-500 rounded"> <span>1 day before</span>
+              </label>
+              <label class="flex items-center gap-1.5 bg-white border border-gray-300 rounded-lg p-2 cursor-pointer">
+                <input type="checkbox" value="2" onchange="toggleReminderOffset(this)" class="reminderOffsetChk w-3.5 h-3.5 text-amber-500 rounded"> <span>2 days before</span>
+              </label>
+              <label class="flex items-center gap-1.5 bg-white border border-gray-300 rounded-lg p-2 cursor-pointer">
+                <input type="checkbox" value="3" onchange="toggleReminderOffset(this)" class="reminderOffsetChk w-3.5 h-3.5 text-amber-500 rounded"> <span>3 days before</span>
+              </label>
+            </div>
+          </div>
+        </details>
+
+        <details class="bg-red-50 border border-red-200 rounded-xl overflow-hidden group">
+          <summary class="p-3 font-semibold text-red-700 cursor-pointer list-none flex items-center justify-between">
+            <span class="flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation"></i> Danger Zone</span>
+            <i class="fa-solid fa-chevron-down text-[10px] text-red-400 group-open:rotate-180 transition-transform"></i>
+          </summary>
+          <div class="p-3 pt-0 space-y-2">
+            <button onclick="resetAppToDemo()" class="w-full bg-amber-50 text-amber-700 border border-amber-200 py-2 rounded-xl font-semibold hover:bg-amber-100">
+              Reload Anonymous Demo Data
+            </button>
+            <button onclick="clearAllDataWithPrompt()" class="w-full bg-white text-red-600 border border-red-200 py-2 rounded-xl font-semibold hover:bg-red-100">
+              Reset All Data (Clear Everything)
+            </button>
+          </div>
+        </details>
       </div>
     </div>
   </div>
@@ -946,6 +1056,18 @@
         <input id="budLimit" type="number" step="0.01" placeholder="Monthly Limit ($)" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
         <button type="submit" class="w-full bg-amber-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-amber-600">Save Budget</button>
       </form>
+    </div>
+  </div>
+
+  <!-- Budget Drilldown Modal — shows the actual transactions/occurrences behind a category total -->
+  <div id="budgetDrilldownModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-3 max-h-[85vh] overflow-y-auto shadow-xl">
+      <div class="flex justify-between items-center">
+        <h3 id="budgetDrilldownTitle" class="font-bold text-base text-gray-900">Category Breakdown</h3>
+        <button onclick="closeModal('budgetDrilldownModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+      </div>
+      <p id="budgetDrilldownSubtitle" class="text-[11px] text-gray-500"></p>
+      <div id="budgetDrilldownList" class="space-y-1.5 text-xs"></div>
     </div>
   </div>
 
@@ -1612,9 +1734,25 @@
       saveViewState();
     }
 
+    function toggleDarkMode() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try { localStorage.setItem('ledger_dark_mode', isDark ? '1' : '0'); } catch (e) { /* ignore */ }
+      updateDarkModeToggleUI();
+      if (chartInstance) renderChart(); // repaint chart with dark-aware tick/grid colors
+    }
+
+    function updateDarkModeToggleUI() {
+      const isDark = document.documentElement.classList.contains('dark');
+      const btn = document.getElementById('darkModeToggleBtn');
+      const dot = document.getElementById('darkModeToggleDot');
+      if (!btn || !dot) return;
+      btn.className = `w-11 h-6 rounded-full relative transition-colors ${isDark ? 'bg-amber-500' : 'bg-gray-300'}`;
+      dot.className = `absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${isDark ? 'translate-x-5' : ''}`;
+    }
+
     function openModal(id) { 
       if (id === 'multiAccountFilterModal') renderMultiAccountFilterUI();
-      if (id === 'settingsModal') { updateRetentionStatusLine(); refreshReminderUI(); }
+      if (id === 'settingsModal') { updateRetentionStatusLine(); refreshReminderUI(); updateDarkModeToggleUI(); }
       document.getElementById(id).classList.remove('hidden'); 
     }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
@@ -3089,7 +3227,7 @@
           : `${fmtMoney(actualTotal)} actual${plannedTotal > 0 ? ` + ${fmtMoney(plannedTotal)} planned` : ''} (${fmtMoney(remaining)} remaining)`;
 
         return `
-          <div class="p-4 rounded-xl bg-white border border-gray-300 space-y-2 text-xs shadow-sm">
+          <div onclick="openBudgetDrilldown('${b.id}')" class="p-4 rounded-xl bg-white border border-gray-300 space-y-2 text-xs shadow-sm cursor-pointer hover:border-amber-400 hover:shadow-md transition-all">
             <div class="flex justify-between items-center">
               <span class="font-bold text-gray-900 flex items-center gap-1.5">
                 ${b.category}
@@ -3097,7 +3235,7 @@
               </span>
               <div class="flex items-center gap-2">
                 <span class="font-mono font-bold text-amber-700">${fmtMoney(total)} / ${fmtMoney(b.limit)}</span>
-                <button onclick="deleteBudget('${b.id}')" class="text-gray-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>
+                <button onclick="event.stopPropagation(); deleteBudget('${b.id}')" class="text-gray-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>
               </div>
             </div>
             <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden border border-gray-200 flex">
@@ -3105,6 +3243,7 @@
               <div class="${plannedBarColor} h-full" style="width: ${Math.max(0, totalPct - actualPct)}%"></div>
             </div>
             <div class="text-[10px] text-gray-500">${footerText}</div>
+            <div class="text-[9px] text-amber-600 font-semibold flex items-center gap-1"><i class="fa-solid fa-magnifying-glass"></i> Tap to see what's in this total</div>
           </div>
         `;
       }).join('');
@@ -3950,6 +4089,25 @@
       const lumpSums = state.payoffLumpSums || [];
       document.getElementById('payoffExtraMonthlyInput').value = extraMonthly;
 
+      // If most extra dollars are lump sums pinned to a specific debt (rather than
+      // "whichever's next"), the Avalanche/Snowball/Custom order has little left to
+      // influence — those dollars go where you pointed them regardless of strategy.
+      // Surface that plainly so a matching debt-free date across strategies doesn't
+      // read as a bug.
+      {
+        const pinnedTotal = lumpSums.filter(ls => ls.debtId && ls.debtId !== 'next').reduce((s, ls) => s + (parseFloat(ls.amount) || 0), 0);
+        const flexibleTotal = lumpSums.filter(ls => !ls.debtId || ls.debtId === 'next').reduce((s, ls) => s + (parseFloat(ls.amount) || 0), 0);
+        const monthsEstimate = 24; // rough horizon for weighing extraMonthly against one-time lump sums
+        const flexiblePool = flexibleTotal + (extraMonthly * monthsEstimate);
+        const pinnedHintEl = document.getElementById('payoffPinnedHint');
+        if (pinnedTotal > 0 && pinnedTotal > flexiblePool) {
+          pinnedHintEl.textContent = `Heads up: ${fmtMoney(pinnedTotal)} of your lump sums are pinned to specific accounts, so they pay off those debts on schedule no matter which strategy is selected. Your Avalanche/Snowball/Custom choice only affects the smaller pool (Extra Monthly + "whichever's next" lump sums) — that's likely why your debt-free date isn't changing much between strategies. Total interest can still differ even when the date doesn't.`;
+          pinnedHintEl.classList.remove('hidden');
+        } else {
+          pinnedHintEl.classList.add('hidden');
+        }
+      }
+
       const result = simulateDebtPayoff(order, extraMonthly, minOverrides, lumpSums);
       document.getElementById('payoffFreeDate').textContent = fmtPayoffDate(result.months);
       document.getElementById('payoffFreeSub').textContent = result.months === null
@@ -4080,6 +4238,82 @@
       saveState();
     }
 
+    // Resolves the same date range the Budgets tab's time filter is currently
+    // set to. Pulled out so both the totals/category cards and the drilldown
+    // modal agree on exactly what period they're describing.
+    function resolveBudgetFilterRange() {
+      const filterMode = document.getElementById('budgetFilterMode')?.value || 'month';
+      let startDateStr = null, endDateStr = null;
+      if (filterMode === 'month') {
+        const monthVal = document.getElementById('budgetFilterMonthInput')?.value;
+        if (monthVal) {
+          const [yr, mo] = monthVal.split('-');
+          startDateStr = `${yr}-${mo}-01`;
+          const lastD = new Date(yr, mo, 0).getDate();
+          endDateStr = `${yr}-${mo}-${lastD}`;
+        }
+      } else if (filterMode === 'range') {
+        startDateStr = document.getElementById('budgetFilterStart')?.value || null;
+        endDateStr = document.getElementById('budgetFilterEnd')?.value || null;
+      }
+      return { filterMode, startDateStr, endDateStr };
+    }
+
+    function openBudgetDrilldown(budgetId) {
+      const b = state.budgets.find(x => x.id === budgetId);
+      if (!b) return;
+      const bType = b.type || 'expense';
+      const { startDateStr, endDateStr } = resolveBudgetFilterRange();
+      const todayStr = formatLocalDate(new Date());
+
+      const items = [];
+
+      state.transactions.forEach(t => {
+        const tCat = t.category || 'Unassigned';
+        if (tCat !== b.category || t.type !== bType) return;
+        if (startDateStr && t.date < startDateStr) return;
+        if (endDateStr && t.date > endDateStr) return;
+        items.push({ date: t.date, desc: t.desc || '(no description)', amount: t.amount, isActual: t.date <= todayStr });
+      });
+
+      if (startDateStr && endDateStr) {
+        let cur = parseLocalDate(startDateStr);
+        const endD = parseLocalDate(endDateStr);
+        while (cur <= endD) {
+          const k = formatLocalDate(cur);
+          getRecurringForDate(k).forEach(r => {
+            const rCat = r.category || 'Unassigned';
+            if (r.type === bType && (rCat === b.category || (!r.category && b.category === 'General'))) {
+              items.push({ date: k, desc: r.desc || '(recurring)', amount: r.amount, isActual: k <= todayStr, isRecurring: true });
+            }
+          });
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+
+      items.sort((a, c) => a.date.localeCompare(c.date));
+      const total = items.reduce((s, i) => s + i.amount, 0);
+
+      document.getElementById('budgetDrilldownTitle').textContent = `${b.category} — ${bType === 'income' ? 'Income' : 'Expenses'}`;
+      const rangeLabel = (startDateStr && endDateStr) ? `${startDateStr} to ${endDateStr}` : 'this period';
+      document.getElementById('budgetDrilldownSubtitle').textContent = `${items.length} item${items.length === 1 ? '' : 's'} totaling ${fmtMoney(total)} (${rangeLabel})`;
+
+      const list = document.getElementById('budgetDrilldownList');
+      list.innerHTML = items.length === 0
+        ? `<div class="text-gray-500 italic p-3 text-center">Nothing in this category for this period.</div>`
+        : items.map(i => `
+            <div class="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-lg p-2">
+              <div class="min-w-0">
+                <div class="font-semibold text-gray-800 truncate">${i.desc}${i.isRecurring ? ' <span class="text-[9px] text-gray-400 font-normal">(recurring)</span>' : ''}</div>
+                <div class="text-[10px] text-gray-500 font-mono">${i.date}${!i.isActual ? ' &middot; planned' : ''}</div>
+              </div>
+              <div class="font-mono font-bold text-gray-800 shrink-0">${fmtMoney(i.amount)}</div>
+            </div>
+          `).join('');
+
+      openModal('budgetDrilldownModal');
+    }
+
     function openCategoryModal(id = null) {
       const titleEl = document.getElementById('categoryModalTitle');
       const submitBtn = document.getElementById('categoryModalSubmitBtn');
@@ -4170,6 +4404,10 @@
 
       if (chartInstance) chartInstance.destroy();
 
+      const isDark = document.documentElement.classList.contains('dark');
+      const tickColor = isDark ? '#9CA3AF' : '#6B7280';
+      const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+
       chartInstance = new Chart(ctx, {
         type: 'line',
         data: {
@@ -4192,8 +4430,8 @@
             legend: { display: false }
           },
           scales: {
-            x: { ticks: { font: { size: 10 } }, grid: { display: false } },
-            y: { ticks: { font: { size: 10 } } }
+            x: { ticks: { font: { size: 10 }, color: tickColor }, grid: { display: false } },
+            y: { ticks: { font: { size: 10 }, color: tickColor }, grid: { color: gridColor } }
           }
         }
       });
