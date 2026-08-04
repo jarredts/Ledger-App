@@ -311,14 +311,30 @@
           <p class="text-[10px] text-gray-400">Applied to whichever debt is first in the order below. As each debt is paid off, its minimum rolls into the extra amount for the next one (classic snowball/avalanche behavior).</p>
         </div>
 
+        <!-- Auto-suggested opportunities -->
+        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 shadow-sm space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-[10px] font-mono font-bold text-amber-800 uppercase flex items-center gap-1.5"><i class="fa-solid fa-wand-magic-sparkles"></i> Suggested Opportunities</label>
+          </div>
+          <div class="flex items-center gap-2 text-[10px] text-amber-800">
+            <span>Suggest income logged or projected over</span>
+            <div class="flex items-center bg-white border border-amber-300 rounded-lg px-1.5">
+              <span class="text-amber-600">$</span>
+              <input id="payoffSuggestThresholdInput" type="number" min="0" step="25" onchange="updatePayoffSuggestThreshold(this.value)" class="w-14 bg-transparent p-1 text-[10px] text-gray-800">
+            </div>
+          </div>
+          <div id="payoffSuggestionsList" class="space-y-1.5"></div>
+          <p id="payoffSuggestionsEmptyHint" class="text-[10px] text-amber-700 italic">Scans your logged one-time income and recurring paychecks for extra pay periods (like a 5th weekly paycheck or 3rd biweekly period in a month) and bonuses/gifts above your threshold.</p>
+        </div>
+
         <!-- Lump sums -->
         <div class="p-3 rounded-xl bg-white border border-gray-300 shadow-sm space-y-2">
           <div class="flex items-center justify-between">
             <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Lump Sum Payoffs</label>
-            <button onclick="addPayoffLumpSum()" class="text-[10px] text-amber-600 font-semibold hover:underline">+ Add</button>
+            <button onclick="addPayoffLumpSum()" class="text-[10px] text-amber-600 font-semibold hover:underline">+ Add Manually</button>
           </div>
           <div id="payoffLumpSumsList" class="space-y-2"></div>
-          <p id="payoffLumpSumEmptyHint" class="text-[10px] text-gray-400 italic">None yet — e.g. a tax refund or bonus applied to a specific debt on a specific date.</p>
+          <p id="payoffLumpSumEmptyHint" class="text-[10px] text-gray-400 italic">None yet — accept a suggestion above, or add one manually for something like a tax refund.</p>
         </div>
 
         <!-- Order / per-debt breakdown -->
@@ -1320,6 +1336,8 @@
       if (!state.payoffMinOverrides) state.payoffMinOverrides = {};
       if (!state.payoffLumpSums) state.payoffLumpSums = [];
       if (!state.payoffCustomOrder) state.payoffCustomOrder = [];
+      if (!state.payoffDismissedSuggestions) state.payoffDismissedSuggestions = [];
+      if (state.payoffSuggestThreshold === undefined) state.payoffSuggestThreshold = 150;
       if (state.retentionAnchorDate === undefined) state.retentionAnchorDate = null;
       if (!state.categories.find(c => c.name.toLowerCase() === 'unassigned')) {
         state.categories.unshift({ id: 'cat-unassigned', name: 'Unassigned', color: '#9CA3AF', icon: 'fa-question' });
@@ -3629,6 +3647,113 @@
       renderPayoffPlanner();
     }
 
+    // Scans logged one-time income and recurring paycheck rules for likely
+    // surplus moments: bonuses/gifts logged as one-time income, and months
+    // where a weekly/biweekly paycheck fires one extra time (a "5-week month").
+    function mostCommon(arr) {
+      const counts = {};
+      arr.forEach(v => counts[v] = (counts[v] || 0) + 1);
+      let best = arr[0], bestCount = 0;
+      Object.entries(counts).forEach(([v, c]) => { if (c > bestCount) { bestCount = c; best = parseInt(v); } });
+      return best;
+    }
+
+    function computeSuggestedLumpSums() {
+      const suggestions = [];
+      const todayStr = formatLocalDate(new Date());
+      const threshold = state.payoffSuggestThreshold || 0;
+
+      // 1. One-time future/recent income already logged (bonuses, gifts, refunds, etc.)
+      (state.transactions || []).forEach(t => {
+        if (t.type !== 'income' || t.date < todayStr || t.amount < threshold) return;
+        suggestions.push({
+          key: `tx-${t.id}`,
+          date: t.date,
+          amount: t.amount,
+          label: `${t.desc || 'One-time income'} — logged for ${t.date}`
+        });
+      });
+
+      // 2. Recurring paycheck rules that fire an "extra" time in some months
+      (state.recurring || []).forEach(rule => {
+        if (rule.type !== 'income' || rule.paused || rule.mode !== 'interval') return;
+        if (!['day', 'week'].includes(rule.unit || 'month')) return;
+        if ((rule.amount || 0) < threshold) return;
+
+        const count = rule.count || 1;
+        const stepDays = rule.unit === 'day' ? count : count * 7;
+        if (stepDays <= 0) return;
+
+        const ruleStart = parseLocalDate(rule.startDate);
+        const horizonEnd = new Date();
+        horizonEnd.setFullYear(horizonEnd.getFullYear() + 1);
+        const ruleEnd = (rule.endType === 'until_date' && rule.endDate) ? parseLocalDate(rule.endDate) : null;
+
+        let cursor = new Date(ruleStart);
+        const today = new Date();
+        while (cursor < today) cursor.setDate(cursor.getDate() + stepDays);
+
+        const occDates = [];
+        let guard = 0;
+        while (cursor <= horizonEnd && guard < 500) {
+          guard++;
+          if (!ruleEnd || cursor <= ruleEnd) occDates.push(new Date(cursor));
+          cursor = new Date(cursor);
+          cursor.setDate(cursor.getDate() + stepDays);
+        }
+        if (occDates.length < 6) return; // not enough history to know what's "extra"
+
+        const byMonth = {};
+        occDates.forEach(d => {
+          const key = d.getFullYear() + '-' + d.getMonth();
+          if (!byMonth[key]) byMonth[key] = [];
+          byMonth[key].push(d);
+        });
+        const counts = Object.values(byMonth).map(arr => arr.length);
+        const typical = mostCommon(counts);
+
+        Object.values(byMonth).forEach(arr => {
+          if (arr.length > typical) {
+            arr.slice(typical).forEach(d => {
+              suggestions.push({
+                key: `rec-${rule.id}-${formatLocalDate(d)}`,
+                date: formatLocalDate(d),
+                amount: rule.amount,
+                label: `Extra "${rule.desc}" pay period this month`
+              });
+            });
+          }
+        });
+      });
+
+      const existingKeys = new Set((state.payoffLumpSums || []).map(ls => ls.suggestKey).filter(Boolean));
+      const dismissed = new Set(state.payoffDismissedSuggestions || []);
+      return suggestions
+        .filter(s => !existingKeys.has(s.key) && !dismissed.has(s.key))
+        .sort((a, b) => a.date.localeCompare(b.date));
+    }
+
+    function updatePayoffSuggestThreshold(val) {
+      state.payoffSuggestThreshold = Math.max(0, parseFloat(val) || 0);
+      saveState();
+      renderPayoffPlanner();
+    }
+
+    function acceptSuggestedLumpSum(key) {
+      const s = computeSuggestedLumpSums().find(x => x.key === key);
+      if (!s) return;
+      state.payoffLumpSums.push({ id: 'lump-' + Date.now(), date: s.date, amount: s.amount, debtId: 'next', suggestKey: key });
+      saveState();
+      renderPayoffPlanner();
+    }
+
+    function dismissSuggestedLumpSum(key) {
+      if (!state.payoffDismissedSuggestions) state.payoffDismissedSuggestions = [];
+      state.payoffDismissedSuggestions.push(key);
+      saveState();
+      renderPayoffPlanner();
+    }
+
     function updatePayoffLumpSum(id, field, val) {
       const ls = state.payoffLumpSums.find(x => x.id === id);
       if (!ls) return;
@@ -3700,6 +3825,28 @@
           </button>
         `;
       }).join('');
+
+      // Suggested opportunities
+      document.getElementById('payoffSuggestThresholdInput').value = state.payoffSuggestThreshold || 0;
+      const suggestions = computeSuggestedLumpSums();
+      const suggList = document.getElementById('payoffSuggestionsList');
+      const suggHint = document.getElementById('payoffSuggestionsEmptyHint');
+      if (suggestions.length === 0) {
+        suggList.innerHTML = '';
+        suggHint.classList.remove('hidden');
+      } else {
+        suggHint.classList.add('hidden');
+        suggList.innerHTML = suggestions.map(s => `
+          <div class="flex items-center gap-2 bg-white border border-amber-300 rounded-lg p-2">
+            <div class="flex-1 min-w-0">
+              <div class="text-[11px] font-semibold text-gray-800 truncate">${s.label}</div>
+              <div class="text-[10px] text-gray-500 font-mono">${s.date} \u00b7 ${fmtMoney(s.amount)}</div>
+            </div>
+            <button onclick="acceptSuggestedLumpSum('${s.key}')" class="shrink-0 bg-emerald-500 text-white text-[10px] font-semibold px-2 py-1 rounded-lg hover:bg-emerald-600">Add</button>
+            <button onclick="dismissSuggestedLumpSum('${s.key}')" class="shrink-0 text-gray-400 hover:text-gray-700 text-[10px] px-1">Dismiss</button>
+          </div>
+        `).join('');
+      }
 
       // Lump sums
       const lumpList = document.getElementById('payoffLumpSumsList');
