@@ -1682,5 +1682,71 @@
       alert(`Backup saved as "${filename}" — check your Downloads folder.`);
     }
 
-    function importDataJSON(e) {
-      const reader = new FileReader(
+        function importDataJSON(e) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          state = JSON.parse(event.target.result);
+          verifyDataIntegrity();
+          saveState();
+          closeModal('settingsModal');
+          alert('Data successfully restored!');
+        } catch(err) {
+          alert('Invalid JSON File structure.');
+        }
+      };
+      reader.readAsText(e.target.files[0]);
+    }
+
+    function resetAppToDemo() {
+      if (confirm('Reset all data to default demo state?')) {
+        state = JSON.parse(JSON.stringify(DEMO_STATE));
+        verifyDataIntegrity();
+        saveState();
+        closeModal('settingsModal');
+      }
+    }
+
+    function clearAllDataWithPrompt() {
+      if (confirm('ARE YOU SURE? This will permanently wipe all accounts, transactions, and settings.')) {
+        state = { accounts: [], categories: DEMO_STATE.categories, transactions: [], recurring: [], debts: [], budgets: [], overrides: {}, exceptions: {}, paidStatus: {} };
+        verifyDataIntegrity();
+        saveState();
+        closeModal('settingsModal');
+      }
+    }
+
+    // ... Ensure rest of render/event handler functions and window.onload are included ...
+
+    window.onload = async function() {
+      await loadState();
+      verifyDataIntegrity();
+      applyAutopayCatchup();
+      initBudgetFilters();
+      restoreViewState();
+      const hidePastPref = localStorage.getItem('ledger_hide_past_months');
+      const hidePastCheckbox = document.getElementById('chkHidePastMonths');
+      if (hidePastCheckbox) hidePastCheckbox.checked = (hidePastPref === '1');
+      renderApp();
+      initCalendarSwipe();
+      initSyncOnBoot();
+      checkDueReminders();
+    };
+
+    if ('serviceWorker' in navigator) {
+      let refreshingOnce = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshingOnce) return;
+        refreshingOnce = true;
+        window.location.reload();
+      });
+
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').then(reg => {
+          reg.update().catch(() => {});
+        }).catch(err => console.error('SW registration failed', err));
+      });
+    }
+  </script>
+</body>
+</html>
