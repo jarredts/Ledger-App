@@ -208,57 +208,67 @@
     </section>
 
     <!-- LOG TAB -->
-    <section id="tab-log" class="hidden space-y-3">
+    <!-- TRANSACTIONS TAB (merged Log + Recurring) -->
+    <section id="tab-transactions" class="hidden space-y-3">
       <div class="flex justify-between items-center">
-        <h2 class="text-base font-bold text-gray-900">Transaction History</h2>
-        <button onclick="openTransactionModal()" class="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-amber-600">+ Entry</button>
+        <h2 class="text-base font-bold text-gray-900">Transactions</h2>
+        <button id="btnTxAddEntry" onclick="openTransactionModal()" class="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-amber-600">+ Entry</button>
+        <button id="btnTxAddRule" onclick="openRecurringModal()" class="hidden bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-amber-600">+ Rule</button>
       </div>
-      <div class="flex items-center justify-between gap-2">
-        <input id="logSearchInput" type="text" oninput="renderLog()" placeholder="Search description, category, or amount..." class="flex-1 bg-white border border-gray-300 rounded-xl p-2.5 text-xs text-gray-800 shadow-sm">
-        <label class="flex items-center gap-1 text-[10px] text-gray-600 font-semibold cursor-pointer whitespace-nowrap bg-white border border-gray-300 p-2.5 rounded-xl shadow-sm">
-          <input type="checkbox" id="chkHidePastLog" onchange="renderLog()" class="w-3.5 h-3.5 text-amber-500 rounded">
-          <span>Hide Past</span>
-        </label>
+
+      <div class="flex gap-1 bg-amber-100/80 p-1 rounded-xl border border-amber-300 shadow-sm">
+        <button id="btnTxSingle" onclick="setTxSubView('single')" class="flex-1 py-2 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm flex items-center justify-center gap-1.5 transition-all">
+          <i class="fa-solid fa-receipt text-[11px]"></i> Single Entries
+        </button>
+        <button id="btnTxRecurring" onclick="setTxSubView('recurring')" class="flex-1 py-2 rounded-lg text-xs font-bold text-amber-900 hover:text-gray-900 flex items-center justify-center gap-1.5 transition-all">
+          <i class="fa-solid fa-rotate text-[11px]"></i> Recurring Rules
+        </button>
       </div>
-      <div class="flex items-center justify-between gap-2 -mt-1">
-        <div class="flex items-center gap-1.5">
-          <label class="text-[10px] text-gray-500 font-semibold">Show:</label>
-          <select id="logHistoryWindow" onchange="renderLog(); saveViewState();" class="bg-white border border-gray-300 rounded-lg text-[11px] text-gray-700 py-1 px-2 shadow-sm">
-            <option value="3">Last 3 Months</option>
-            <option value="6">Last 6 Months</option>
-            <option value="12">Last 12 Months</option>
-            <option value="all">All Time</option>
+
+      <!-- Single Entries sub-view -->
+      <div id="txSingleView" class="space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <input id="logSearchInput" type="text" oninput="renderLog()" placeholder="Search description, category, or amount..." class="flex-1 bg-white border border-gray-300 rounded-xl p-2.5 text-xs text-gray-800 shadow-sm">
+          <label class="flex items-center gap-1 text-[10px] text-gray-600 font-semibold cursor-pointer whitespace-nowrap bg-white border border-gray-300 p-2.5 rounded-xl shadow-sm">
+            <input type="checkbox" id="chkHidePastLog" onchange="renderLog()" class="w-3.5 h-3.5 text-amber-500 rounded">
+            <span>Hide Past</span>
+          </label>
+        </div>
+        <div class="flex items-center justify-between gap-2 -mt-1">
+          <div class="flex items-center gap-1.5">
+            <label class="text-[10px] text-gray-500 font-semibold">Show:</label>
+            <select id="logHistoryWindow" onchange="renderLog(); saveViewState();" class="bg-white border border-gray-300 rounded-lg text-[11px] text-gray-700 py-1 px-2 shadow-sm">
+              <option value="3">Last 3 Months</option>
+              <option value="6">Last 6 Months</option>
+              <option value="12">Last 12 Months</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <label class="text-[10px] text-gray-500 font-semibold">Sort:</label>
+            <select id="logSortSelect" onchange="renderLog()" class="bg-white border border-gray-300 rounded-lg text-[11px] text-gray-700 py-1 px-2 shadow-sm">
+              <option value="date_desc">Date (Newest First)</option>
+              <option value="date_asc">Date (Oldest First)</option>
+            </select>
+          </div>
+        </div>
+        <div id="fullLogList" class="space-y-2"></div>
+      </div>
+
+      <!-- Recurring Rules sub-view -->
+      <div id="txRecurringView" class="hidden space-y-3">
+        <div class="grid grid-cols-2 gap-2">
+          <input id="recSearchInput" type="text" oninput="renderRecurring()" placeholder="Search rules..." class="bg-white border border-gray-300 rounded-xl p-2 text-xs text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
+          <select id="recSortSelect" onchange="renderRecurring()" class="select-custom bg-white border border-gray-300 rounded-xl p-2 text-xs font-medium text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
+            <option value="desc">Sort: Name (A-Z)</option>
+            <option value="amount">Sort: Amount (High to Low)</option>
+            <option value="date">Sort: Start Date</option>
+            <option value="account">Sort: Account Name</option>
           </select>
         </div>
-        <div class="flex items-center gap-1.5">
-          <label class="text-[10px] text-gray-500 font-semibold">Sort:</label>
-          <select id="logSortSelect" onchange="renderLog()" class="bg-white border border-gray-300 rounded-lg text-[11px] text-gray-700 py-1 px-2 shadow-sm">
-            <option value="date_desc">Date (Newest First)</option>
-            <option value="date_asc">Date (Oldest First)</option>
-          </select>
-        </div>
-      </div>
-      <div id="fullLogList" class="space-y-2"></div>
-    </section>
 
-    <!-- RECURRING TAB -->
-    <section id="tab-recurring" class="hidden space-y-3">
-      <div class="flex justify-between items-center">
-        <h2 class="text-base font-bold text-gray-900">Recurring Rules</h2>
-        <button onclick="openRecurringModal()" class="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-amber-600">+ Rule</button>
+        <div id="recurringList" class="space-y-2"></div>
       </div>
-
-      <div class="grid grid-cols-2 gap-2">
-        <input id="recSearchInput" type="text" oninput="renderRecurring()" placeholder="Search rules..." class="bg-white border border-gray-300 rounded-xl p-2 text-xs text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
-        <select id="recSortSelect" onchange="renderRecurring()" class="select-custom bg-white border border-gray-300 rounded-xl p-2 text-xs font-medium text-gray-800 shadow-sm focus:ring-2 focus:ring-amber-500">
-          <option value="desc">Sort: Name (A-Z)</option>
-          <option value="amount">Sort: Amount (High to Low)</option>
-          <option value="date">Sort: Start Date</option>
-          <option value="account">Sort: Account Name</option>
-        </select>
-      </div>
-
-      <div id="recurringList" class="space-y-2"></div>
     </section>
 
     <!-- DEBTS TAB -->
@@ -317,14 +327,14 @@
             <label class="text-[10px] font-mono font-bold text-amber-800 uppercase flex items-center gap-1.5"><i class="fa-solid fa-wand-magic-sparkles"></i> Suggested Opportunities</label>
           </div>
           <div class="flex items-center gap-2 text-[10px] text-amber-800">
-            <span>Suggest income logged or projected over</span>
+            <span>Suggest income or month-end surplus over</span>
             <div class="flex items-center bg-white border border-amber-300 rounded-lg px-1.5">
               <span class="text-amber-600">$</span>
               <input id="payoffSuggestThresholdInput" type="number" min="0" step="25" onchange="updatePayoffSuggestThreshold(this.value)" class="w-14 bg-transparent p-1 text-[10px] text-gray-800">
             </div>
           </div>
           <div id="payoffSuggestionsList" class="space-y-1.5"></div>
-          <p id="payoffSuggestionsEmptyHint" class="text-[10px] text-amber-700 italic">Scans your logged one-time income and recurring paychecks for extra pay periods (like a 5th weekly paycheck or 3rd biweekly period in a month) and bonuses/gifts above your threshold.</p>
+          <p id="payoffSuggestionsEmptyHint" class="text-[10px] text-amber-700 italic">Scans your logged one-time income, recurring paychecks for extra pay periods (like a 5th weekly paycheck), and upcoming months projected to close out with a net surplus above your threshold.</p>
         </div>
 
         <!-- Lump sums -->
@@ -392,11 +402,8 @@
     <button id="nav-forecast" onclick="switchTab('forecast')" class="flex flex-col items-center gap-1 text-amber-600">
       <i class="fa-solid fa-calendar-days text-base"></i><span class="text-[10px] font-medium">Forecast</span>
     </button>
-    <button id="nav-log" onclick="switchTab('log')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800">
-      <i class="fa-solid fa-receipt text-base"></i><span class="text-[10px] font-medium">Log</span>
-    </button>
-    <button id="nav-recurring" onclick="switchTab('recurring')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800">
-      <i class="fa-solid fa-rotate text-base"></i><span class="text-[10px] font-medium">Recurring</span>
+    <button id="nav-transactions" onclick="switchTab('transactions')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800">
+      <i class="fa-solid fa-receipt text-base"></i><span class="text-[10px] font-medium">Transactions</span>
     </button>
     <button id="nav-debts" onclick="switchTab('debts')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800">
       <i class="fa-solid fa-credit-card text-base"></i><span class="text-[10px] font-medium">Debts</span>
@@ -443,7 +450,7 @@
 
   <!-- Settings Modal -->
   <div id="settingsModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-xl">
+    <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto shadow-xl">
       <div class="flex justify-between items-center">
         <h3 class="font-bold text-base text-gray-900">Settings & Data Management</h3>
         <button onclick="closeModal('settingsModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
@@ -551,7 +558,7 @@
 
         <div>
           <div class="font-bold text-gray-900 mb-1">Marking things paid</div>
-          <p>Every transaction — recurring or one-off, in the day view or the Log tab — has a checkbox to mark it <b>Paid/Cleared</b>. This is just for your own tracking; it doesn't change the forecast math, so it's safe to check things off early or late without throwing off future balances.</p>
+          <p>Every transaction — recurring or one-off, in the day view or the Transactions tab — has a checkbox to mark it <b>Paid/Cleared</b>. This is just for your own tracking; it doesn't change the forecast math, so it's safe to check things off early or late without throwing off future balances.</p>
           <p class="mt-1">For bills or income you know happen automatically (direct deposit, autopay), check <b>Autopay</b> when adding or editing that recurring rule — it'll mark each occurrence Paid on its own once the date passes, so you're not manually checking off the same thing every cycle.</p>
         </div>
 
@@ -1612,9 +1619,11 @@
     }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
+    let activeTxSubView = 'single';
+
     function switchTab(tab) {
       activeTab = tab;
-      ['forecast', 'log', 'recurring', 'debts', 'payoff', 'budgets'].forEach(t => {
+      ['forecast', 'transactions', 'debts', 'payoff', 'budgets'].forEach(t => {
         document.getElementById(`tab-${t}`).classList.add('hidden');
         document.getElementById(`nav-${t}`).className = 'flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800';
       });
@@ -1623,6 +1632,36 @@
       if (tab === 'forecast') renderCalendar();
       if (tab === 'budgets') initBudgetFilters();
       if (tab === 'payoff') renderPayoffPlanner();
+      if (tab === 'transactions') setTxSubView(activeTxSubView);
+      saveViewState();
+    }
+
+    function setTxSubView(view) {
+      activeTxSubView = view;
+      const singleView = document.getElementById('txSingleView');
+      const recurringView = document.getElementById('txRecurringView');
+      const btnSingle = document.getElementById('btnTxSingle');
+      const btnRecurring = document.getElementById('btnTxRecurring');
+      const btnAddEntry = document.getElementById('btnTxAddEntry');
+      const btnAddRule = document.getElementById('btnTxAddRule');
+
+      if (view === 'single') {
+        singleView.classList.remove('hidden');
+        recurringView.classList.add('hidden');
+        btnSingle.className = 'flex-1 py-2 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm flex items-center justify-center gap-1.5 transition-all';
+        btnRecurring.className = 'flex-1 py-2 rounded-lg text-xs font-bold text-amber-900 hover:text-gray-900 flex items-center justify-center gap-1.5 transition-all';
+        btnAddEntry.classList.remove('hidden');
+        btnAddRule.classList.add('hidden');
+        renderLog();
+      } else {
+        singleView.classList.add('hidden');
+        recurringView.classList.remove('hidden');
+        btnRecurring.className = 'flex-1 py-2 rounded-lg text-xs font-bold bg-amber-500 text-white shadow-sm flex items-center justify-center gap-1.5 transition-all';
+        btnSingle.className = 'flex-1 py-2 rounded-lg text-xs font-bold text-amber-900 hover:text-gray-900 flex items-center justify-center gap-1.5 transition-all';
+        btnAddRule.classList.remove('hidden');
+        btnAddEntry.classList.add('hidden');
+        renderRecurring();
+      }
       saveViewState();
     }
 
@@ -1799,6 +1838,7 @@
         const logHistorySelect = document.getElementById('logHistoryWindow');
         localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({
           activeTab,
+          activeTxSubView,
           activeForecastMode,
           currentMonthDate: formatLocalDate(currentMonthDate),
           selectedDateStr,
@@ -1868,7 +1908,14 @@
       }
       toggleBudgetFilterUI();
 
-      switchTab(vs.activeTab || 'forecast');
+      // Migrate a view state saved before Log/Recurring merged into one Transactions tab.
+      let restoredTab = vs.activeTab || 'forecast';
+      let restoredTxSubView = vs.activeTxSubView || 'single';
+      if (restoredTab === 'log') { restoredTab = 'transactions'; restoredTxSubView = 'single'; }
+      if (restoredTab === 'recurring') { restoredTab = 'transactions'; restoredTxSubView = 'recurring'; }
+      activeTxSubView = restoredTxSubView;
+
+      switchTab(restoredTab);
       switchForecastMode(vs.activeForecastMode || 'liquid');
       setSubView(vs.subView || 'cal');
     }
@@ -3658,14 +3705,82 @@
       return best;
     }
 
+    // Single pass, mode/filter-independent month-end cash balance walk — used to
+    // spot months that close out with an unusually large net surplus (a "high
+    // point"), regardless of whatever the main Forecast tab's mode/filter is
+    // currently set to. Temporarily forces liquid+all-accounts, then restores.
+    function computeMonthEndBalances(monthsAhead) {
+      const savedMode = activeForecastMode;
+      const savedLiquidIds = selectedLiquidAccountIds;
+      activeForecastMode = 'liquid';
+      selectedLiquidAccountIds = ['all'];
+
+      try {
+        let earliestDate = new Date();
+        state.recurring.forEach(r => {
+          const rStart = parseLocalDate(r.startDate);
+          if (rStart < earliestDate) earliestDate = new Date(rStart);
+        });
+        if (state.retentionAnchorDate) {
+          const anchor = parseLocalDate(state.retentionAnchorDate);
+          if (anchor > earliestDate) earliestDate = anchor;
+        }
+
+        const txByDate = {};
+        state.transactions.forEach(t => {
+          txByDate[t.date] = (txByDate[t.date] || 0) + (t.type === 'income' ? t.amount : -t.amount);
+          if (t.date < formatLocalDate(earliestDate)) {
+            // Pre-fold anything dated before the walk's start into the base below.
+          }
+        });
+        const earliestStr = formatLocalDate(earliestDate);
+        const preSum = state.transactions
+          .filter(t => t.date < earliestStr)
+          .reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
+
+        let runningBalance = state.accounts.reduce((s, a) => s + a.balance, 0) + preSum;
+
+        const today = new Date();
+        const horizonEnd = new Date(today.getFullYear(), today.getMonth() + monthsAhead + 1, 0);
+        const monthEndBalance = {};
+
+        let cur = new Date(earliestDate);
+        while (cur <= horizonEnd) {
+          const k = formatLocalDate(cur);
+          runningBalance += (txByDate[k] || 0);
+          getRecurringForDate(k).forEach(r => { runningBalance += (r.type === 'income' ? r.amount : -r.amount); });
+
+          const nextDay = new Date(cur);
+          nextDay.setDate(nextDay.getDate() + 1);
+          if (nextDay.getMonth() !== cur.getMonth()) {
+            monthEndBalance[`${cur.getFullYear()}-${cur.getMonth()}`] = runningBalance;
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+
+        return { monthEndBalance, baseline: state.accounts.reduce((s, a) => s + a.balance, 0) + preSum };
+      } finally {
+        activeForecastMode = savedMode;
+        selectedLiquidAccountIds = savedLiquidIds;
+      }
+    }
+
     function computeSuggestedLumpSums() {
       const suggestions = [];
       const todayStr = formatLocalDate(new Date());
       const threshold = state.payoffSuggestThreshold || 0;
 
+      // Anything already sitting in the lump sum list — manually entered or
+      // previously accepted — so a later scan doesn't re-suggest the same money.
+      const existingKeys = new Set((state.payoffLumpSums || []).map(ls => ls.suggestKey).filter(Boolean));
+      const existingDateAmount = new Set((state.payoffLumpSums || []).map(ls => `${ls.date}|${ls.amount}`));
+      const existingMonths = new Set((state.payoffLumpSums || []).map(ls => (ls.date || '').slice(0, 7)));
+      const dismissed = new Set(state.payoffDismissedSuggestions || []);
+
       // 1. One-time future/recent income already logged (bonuses, gifts, refunds, etc.)
       (state.transactions || []).forEach(t => {
         if (t.type !== 'income' || t.date < todayStr || t.amount < threshold) return;
+        if (existingDateAmount.has(`${t.date}|${t.amount}`)) return;
         suggestions.push({
           key: `tx-${t.id}`,
           date: t.date,
@@ -3715,9 +3830,11 @@
         Object.values(byMonth).forEach(arr => {
           if (arr.length > typical) {
             arr.slice(typical).forEach(d => {
+              const dStr = formatLocalDate(d);
+              if (existingDateAmount.has(`${dStr}|${rule.amount}`)) return;
               suggestions.push({
-                key: `rec-${rule.id}-${formatLocalDate(d)}`,
-                date: formatLocalDate(d),
+                key: `rec-${rule.id}-${dStr}`,
+                date: dStr,
                 amount: rule.amount,
                 label: `Extra "${rule.desc}" pay period this month`
               });
@@ -3726,8 +3843,39 @@
         });
       });
 
-      const existingKeys = new Set((state.payoffLumpSums || []).map(ls => ls.suggestKey).filter(Boolean));
-      const dismissed = new Set(state.payoffDismissedSuggestions || []);
+      // 3. Months projected to close out with an unusually large net surplus —
+      // a "high point" month where a lot more came in than went out, whether
+      // that's one big windfall or just a lighter-expense month.
+      {
+        const monthsAhead = 12;
+        const { monthEndBalance, baseline } = computeMonthEndBalances(monthsAhead);
+        const today = new Date();
+        for (let i = 0; i < monthsAhead; i++) {
+          const monthDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
+          const monthEnd = new Date(today.getFullYear(), today.getMonth() + i + 1, 0);
+          const key = `${monthDate.getFullYear()}-${monthDate.getMonth()}`;
+          const prevMonthDate = new Date(today.getFullYear(), today.getMonth() + i - 1, 1);
+          const prevKey = `${prevMonthDate.getFullYear()}-${prevMonthDate.getMonth()}`;
+
+          const endBal = monthEndBalance[key];
+          if (endBal === undefined) continue;
+          const startBal = monthEndBalance[prevKey] !== undefined ? monthEndBalance[prevKey] : baseline;
+          const surplus = endBal - startBal;
+
+          if (surplus >= threshold) {
+            const monthEndStr = formatLocalDate(monthEnd);
+            if (existingMonths.has(monthEndStr.slice(0, 7))) continue;
+            const roundedSurplus = Math.round(surplus * 100) / 100;
+            suggestions.push({
+              key: `month-${key}`,
+              date: monthEndStr,
+              amount: roundedSurplus,
+              label: `Strong month — projected to clear ${fmtMoney(roundedSurplus)} net in ${monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+            });
+          }
+        }
+      }
+
       return suggestions
         .filter(s => !existingKeys.has(s.key) && !dismissed.has(s.key))
         .sort((a, b) => a.date.localeCompare(b.date));
