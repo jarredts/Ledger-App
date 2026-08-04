@@ -4484,8 +4484,20 @@
     };
 
     if ('serviceWorker' in navigator) {
+      let refreshingOnce = false;
+      // The instant a new service worker takes control, reload once so the page
+      // actually uses the new code instead of silently sitting on the old version.
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshingOnce) return;
+        refreshingOnce = true;
+        window.location.reload();
+      });
+
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(err => console.error('SW registration failed', err));
+        navigator.serviceWorker.register('sw.js').then(reg => {
+          // Check for an update every time the app is opened, not just once per day.
+          reg.update().catch(() => {});
+        }).catch(err => console.error('SW registration failed', err));
       });
     }
   </script>
