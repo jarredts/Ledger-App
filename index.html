@@ -271,6 +271,67 @@
       <div id="debtsList" class="space-y-3"></div>
     </section>
 
+    <!-- DEBT PAYOFF PLANNER TAB -->
+    <section id="tab-payoff" class="hidden space-y-3">
+      <div>
+        <h2 class="text-base font-bold text-gray-900">Debt Payoff Planner</h2>
+        <p class="text-xs text-gray-500">See how extra payments, higher minimums, and lump sums move your debt-free date.</p>
+      </div>
+
+      <div id="payoffEmptyState" class="hidden text-xs text-gray-500 italic p-4 text-center bg-white rounded-xl border border-gray-300">
+        Add a debt on the Debts tab first — this planner works off your actual balances, APRs, and minimums.
+      </div>
+
+      <div id="payoffContent" class="space-y-3">
+        <!-- Strategy toggle -->
+        <div class="flex gap-1 bg-gray-200 p-1 rounded-xl border border-gray-300">
+          <button id="btnStratAvalanche" onclick="setPayoffStrategy('avalanche')" class="flex-1 py-1.5 rounded-lg text-xs font-bold">Avalanche</button>
+          <button id="btnStratSnowball" onclick="setPayoffStrategy('snowball')" class="flex-1 py-1.5 rounded-lg text-xs font-bold">Snowball</button>
+          <button id="btnStratCustom" onclick="setPayoffStrategy('custom')" class="flex-1 py-1.5 rounded-lg text-xs font-bold">Custom</button>
+        </div>
+        <p id="payoffStrategyHint" class="text-[10px] text-gray-400 px-1"></p>
+
+        <!-- Headline debt-free date -->
+        <div class="p-4 rounded-xl bg-white border border-gray-300 shadow-sm text-center">
+          <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Debt-Free Date</div>
+          <div id="payoffFreeDate" class="text-2xl font-mono font-bold text-emerald-700 mt-0.5">—</div>
+          <div id="payoffFreeSub" class="text-[11px] text-gray-400 font-mono mt-1"></div>
+        </div>
+
+        <!-- Quick comparison -->
+        <div id="payoffComparison" class="grid grid-cols-3 gap-2"></div>
+
+        <!-- Extra payment inputs -->
+        <div class="p-3 rounded-xl bg-white border border-gray-300 shadow-sm space-y-2">
+          <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Extra Monthly Payment</label>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-500 font-mono">$</span>
+            <input id="payoffExtraMonthlyInput" type="number" min="0" step="10" value="0" onchange="updatePayoffExtraMonthly(this.value)" class="flex-1 bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs font-mono text-gray-800">
+          </div>
+          <p class="text-[10px] text-gray-400">Applied to whichever debt is first in the order below. As each debt is paid off, its minimum rolls into the extra amount for the next one (classic snowball/avalanche behavior).</p>
+        </div>
+
+        <!-- Lump sums -->
+        <div class="p-3 rounded-xl bg-white border border-gray-300 shadow-sm space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Lump Sum Payoffs</label>
+            <button onclick="addPayoffLumpSum()" class="text-[10px] text-amber-600 font-semibold hover:underline">+ Add</button>
+          </div>
+          <div id="payoffLumpSumsList" class="space-y-2"></div>
+          <p id="payoffLumpSumEmptyHint" class="text-[10px] text-gray-400 italic">None yet — e.g. a tax refund or bonus applied to a specific debt on a specific date.</p>
+        </div>
+
+        <!-- Order / per-debt breakdown -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between px-1">
+            <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Payoff Order</label>
+            <span id="payoffOrderHint" class="text-[10px] text-gray-400"></span>
+          </div>
+          <div id="payoffOrderList" class="space-y-2"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- BUDGETS & CATEGORIES TAB -->
     <section id="tab-budgets" class="hidden space-y-3">
       <div class="flex justify-between items-center">
@@ -323,6 +384,9 @@
     </button>
     <button id="nav-debts" onclick="switchTab('debts')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800">
       <i class="fa-solid fa-credit-card text-base"></i><span class="text-[10px] font-medium">Debts</span>
+    </button>
+    <button id="nav-payoff" onclick="switchTab('payoff')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800">
+      <i class="fa-solid fa-flag-checkered text-base"></i><span class="text-[10px] font-medium">Payoff</span>
     </button>
     <button id="nav-budgets" onclick="switchTab('budgets')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800">
       <i class="fa-solid fa-bullseye text-base"></i><span class="text-[10px] font-medium">Budgets</span>
@@ -408,6 +472,31 @@
             Archive Older Transactions Now
           </button>
           <p class="text-[10px] text-gray-400 mt-1">Older one-time transactions get folded into each account's balance (your totals don't change) and moved out of the active Log so things stay fast. They're kept in your data — export a backup first if you want a full record you can browse later. Recurring bills/paychecks and debt history aren't affected.</p>
+        </div>
+        <hr class="border-gray-200">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="font-semibold text-gray-700">Payment Reminders</label>
+            <span id="reminderEnabledBadge" class="hidden text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold uppercase">On</span>
+          </div>
+          <p class="text-[11px] text-gray-500 mb-2">Notifies you about upcoming bills, recurring expenses, and debt payments when you open the app — it checks on open, not in the background, so it works best if you (or your wife) open the app most days.</p>
+          <button id="reminderPermissionBtn" onclick="enablePaymentReminders()" class="w-full bg-emerald-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-emerald-600 mb-2">
+            Turn On Reminders
+          </button>
+          <div class="grid grid-cols-2 gap-1.5">
+            <label class="flex items-center gap-1.5 bg-gray-50 border border-gray-300 rounded-lg p-2 cursor-pointer">
+              <input type="checkbox" value="0" onchange="toggleReminderOffset(this)" class="reminderOffsetChk w-3.5 h-3.5 text-amber-500 rounded"> <span>Day of</span>
+            </label>
+            <label class="flex items-center gap-1.5 bg-gray-50 border border-gray-300 rounded-lg p-2 cursor-pointer">
+              <input type="checkbox" value="1" onchange="toggleReminderOffset(this)" class="reminderOffsetChk w-3.5 h-3.5 text-amber-500 rounded"> <span>1 day before</span>
+            </label>
+            <label class="flex items-center gap-1.5 bg-gray-50 border border-gray-300 rounded-lg p-2 cursor-pointer">
+              <input type="checkbox" value="2" onchange="toggleReminderOffset(this)" class="reminderOffsetChk w-3.5 h-3.5 text-amber-500 rounded"> <span>2 days before</span>
+            </label>
+            <label class="flex items-center gap-1.5 bg-gray-50 border border-gray-300 rounded-lg p-2 cursor-pointer">
+              <input type="checkbox" value="3" onchange="toggleReminderOffset(this)" class="reminderOffsetChk w-3.5 h-3.5 text-amber-500 rounded"> <span>3 days before</span>
+            </label>
+          </div>
         </div>
         <hr class="border-gray-200">
         <button onclick="resetAppToDemo()" class="w-full bg-amber-50 text-amber-700 border border-amber-200 py-2 rounded-xl font-semibold hover:bg-amber-100">
@@ -986,8 +1075,20 @@
     // and sync code are only ever stored in this device's localStorage, entered
     // by hand in Settings. Without that config, none of this code does anything.
     const SYNC_CONFIG_KEY = 'ledger_sync_config';
+    const SYNC_META_KEY = 'ledger_sync_meta';
     let syncConfig = null;
     let firebaseApp = null;
+
+    function getSyncMeta() {
+      try {
+        return JSON.parse(localStorage.getItem(SYNC_META_KEY)) || { lastConfirmedModified: 0 };
+      } catch (e) {
+        return { lastConfirmedModified: 0 };
+      }
+    }
+    function setSyncMeta(meta) {
+      localStorage.setItem(SYNC_META_KEY, JSON.stringify(meta));
+    }
     let firestoreDb = null;
 
     function loadSyncConfigFromStorage() {
@@ -1064,6 +1165,7 @@
             state = JSON.parse(doc.data().payload);
             verifyDataIntegrity();
             renderApp();
+            setSyncMeta({ lastConfirmedModified: doc.data().clientModified || Date.now() });
           } else {
             await pushToCloud();
           }
@@ -1090,10 +1192,13 @@
     async function pushToCloud() {
       if (!syncConfig || !firestoreDb) return;
       try {
+        const clientModified = state.__lastModified || Date.now();
         await firestoreDb.collection('ledgers').doc(syncConfig.syncCode).set({
           payload: JSON.stringify(state),
+          clientModified: clientModified,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+        setSyncMeta({ lastConfirmedModified: clientModified });
         setSyncLine('Synced ' + new Date().toLocaleTimeString());
       } catch (e) {
         console.error('Push failed', e);
@@ -1109,6 +1214,7 @@
           state = JSON.parse(doc.data().payload);
           verifyDataIntegrity();
           renderApp();
+          setSyncMeta({ lastConfirmedModified: doc.data().clientModified || Date.now() });
         }
       } catch (e) {
         console.error('Pull failed', e);
@@ -1116,9 +1222,70 @@
       }
     }
 
+    // Runs automatically when the app opens with Cloud Sync enabled. Unlike a
+    // plain pull, this checks whether THIS device has unsynced local changes
+    // before touching anything, so an offline entry never gets silently wiped
+    // out by an older or newer copy from another device.
+    async function resolveSyncOnBoot() {
+      if (!syncConfig || !firestoreDb) return;
+      setSyncLine('Syncing...');
+      try {
+        const doc = await firestoreDb.collection('ledgers').doc(syncConfig.syncCode).get();
+        const meta = getSyncMeta();
+        const baseline = meta.lastConfirmedModified || 0;
+        const localModified = state.__lastModified || 0;
+        const localChanged = localModified > baseline;
+
+        if (!doc.exists || !doc.data().payload) {
+          // Nothing in the cloud yet — seed it with this device's data.
+          await pushToCloud();
+          return;
+        }
+
+        const cloudModified = doc.data().clientModified || 0;
+        const cloudChanged = cloudModified > baseline;
+
+        if (cloudChanged && !localChanged) {
+          // Safe: nothing unsynced on this device, so just take the latest.
+          state = JSON.parse(doc.data().payload);
+          verifyDataIntegrity();
+          renderApp();
+          setSyncMeta({ lastConfirmedModified: cloudModified });
+          setSyncLine('Synced — pulled the latest changes.');
+        } else if (localChanged && !cloudChanged) {
+          // Safe: the cloud hasn't moved since our last confirmed sync.
+          await pushToCloud();
+          setSyncLine('Synced — pushed this device\'s changes.');
+        } else if (localChanged && cloudChanged) {
+          // Real conflict: both sides changed since the last confirmed sync.
+          // Never guess — ask, so nothing gets silently overwritten.
+          const useOther = confirm(
+            'This device and your other device both have changes since the last sync.\n\n' +
+            'Press OK to load the OTHER device\'s version (anything entered only on THIS device since your last sync will be lost — you may want to write it down first).\n\n' +
+            'Press Cancel to keep THIS device\'s version and overwrite the other device instead.'
+          );
+          if (useOther) {
+            state = JSON.parse(doc.data().payload);
+            verifyDataIntegrity();
+            renderApp();
+            setSyncMeta({ lastConfirmedModified: cloudModified });
+            setSyncLine('Synced — loaded the other device\'s version.');
+          } else {
+            await pushToCloud();
+            setSyncLine('Synced — kept this device\'s version.');
+          }
+        } else {
+          setSyncLine('Already up to date.');
+        }
+      } catch (e) {
+        console.error('Sync check failed', e);
+        setSyncLine('Could not reach the cloud copy — showing local data.');
+      }
+    }
+
     function manualSyncNow() {
       if (!syncConfig) { alert('Sync isn\'t enabled on this device yet.'); return; }
-      pushToCloud();
+      resolveSyncOnBoot();
     }
 
     function initSyncOnBoot() {
@@ -1126,7 +1293,7 @@
       if (cfg) {
         applySyncConfig(cfg);
         refreshSyncUI();
-        pullFromCloud();
+        resolveSyncOnBoot();
       }
     }
 
@@ -1147,6 +1314,12 @@
       if (!state.exceptions) state.exceptions = {};
       if (!state.debtPaymentOverrides) state.debtPaymentOverrides = {};
       if (!state.archivedTransactions) state.archivedTransactions = [];
+      if (!state.reminderOffsets) state.reminderOffsets = [];
+      if (!state.payoffStrategy) state.payoffStrategy = 'avalanche';
+      if (state.payoffExtraMonthly === undefined) state.payoffExtraMonthly = 0;
+      if (!state.payoffMinOverrides) state.payoffMinOverrides = {};
+      if (!state.payoffLumpSums) state.payoffLumpSums = [];
+      if (!state.payoffCustomOrder) state.payoffCustomOrder = [];
       if (state.retentionAnchorDate === undefined) state.retentionAnchorDate = null;
       if (!state.categories.find(c => c.name.toLowerCase() === 'unassigned')) {
         state.categories.unshift({ id: 'cat-unassigned', name: 'Unassigned', color: '#9CA3AF', icon: 'fa-question' });
@@ -1165,7 +1338,125 @@
       persist();
     }
 
+    // --- PAYMENT REMINDERS (checked when the app opens — no background server) ---
+    function refreshReminderUI() {
+      const badge = document.getElementById('reminderEnabledBadge');
+      const btn = document.getElementById('reminderPermissionBtn');
+      const granted = ('Notification' in window) && Notification.permission === 'granted';
+
+      document.querySelectorAll('.reminderOffsetChk').forEach(chk => {
+        chk.checked = state.reminderOffsets.includes(parseInt(chk.value));
+      });
+
+      if (!('Notification' in window)) {
+        btn.textContent = 'Notifications not supported on this browser';
+        btn.disabled = true;
+        badge.classList.add('hidden');
+      } else if (Notification.permission === 'denied') {
+        btn.textContent = 'Blocked — enable notifications for this site in your browser settings';
+        badge.classList.add('hidden');
+      } else if (granted) {
+        btn.textContent = 'Reminders On — Send a Test';
+        badge.classList.remove('hidden');
+      } else {
+        btn.textContent = 'Turn On Reminders';
+        badge.classList.add('hidden');
+      }
+    }
+
+    function toggleReminderOffset(chk) {
+      const val = parseInt(chk.value);
+      state.reminderOffsets = state.reminderOffsets.filter(x => x !== val);
+      if (chk.checked) state.reminderOffsets.push(val);
+      saveState();
+      refreshReminderUI();
+    }
+
+    async function enablePaymentReminders() {
+      if (!('Notification' in window)) {
+        alert('This browser doesn\'t support notifications.');
+        return;
+      }
+      if (Notification.permission === 'granted') {
+        // Already on — treat the button as a test send.
+        if (state.reminderOffsets.length === 0) {
+          alert('Check at least one box below (Day of, 1/2/3 days before) so there\'s something to remind you about.');
+          return;
+        }
+        showAppNotification('Test Reminder', 'This is what a payment reminder will look like.');
+        return;
+      }
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        if (state.reminderOffsets.length === 0) {
+          state.reminderOffsets = [0, 1];
+          saveState();
+        }
+        refreshReminderUI();
+        checkDueReminders();
+      } else {
+        alert('Notifications were blocked. You can still see upcoming payments on the calendar — you\'d just need to enable notifications for this site in your browser settings to turn reminders on later.');
+        refreshReminderUI();
+      }
+    }
+
+    async function showAppNotification(title, body) {
+      try {
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg && reg.showNotification) {
+            reg.showNotification(title, { body, icon: 'icon-192.png', badge: 'icon-192.png' });
+            return;
+          }
+        }
+        new Notification(title, { body, icon: 'icon-192.png' });
+      } catch (e) {
+        console.error('Notification failed', e);
+      }
+    }
+
+    // Checked once on app open. Groups upcoming due items by how many days
+    // out they are, and skips anything already notified today so reopening
+    // the app repeatedly doesn't spam the same reminder over and over.
+    function checkDueReminders() {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      if (!state.reminderOffsets || state.reminderOffsets.length === 0) return;
+
+      const todayStr = formatLocalDate(new Date());
+      const seenKey = 'ledger_reminders_seen_' + todayStr;
+      let seen = [];
+      try { seen = JSON.parse(localStorage.getItem(seenKey)) || []; } catch (e) {}
+      const seenSet = new Set(seen);
+
+      const lines = [];
+      const newlySeen = [];
+
+      [...state.reminderOffsets].sort((a, b) => a - b).forEach(offset => {
+        const d = new Date();
+        d.setDate(d.getDate() + offset);
+        const dateStr = formatLocalDate(d);
+        const dueLabel = offset === 0 ? 'Today' : offset === 1 ? 'Tomorrow' : `In ${offset} days`;
+
+        getRecurringForDate(dateStr).forEach(item => {
+          if (item.type !== 'expense') return;
+          const key = `${dateStr}_${item.instanceId || item.id}`;
+          if (seenSet.has(key)) return;
+          lines.push(`${dueLabel}: ${item.name} ${fmtMoney(item.amount)}`);
+          newlySeen.push(key);
+        });
+      });
+
+      if (lines.length > 0) {
+        showAppNotification(
+          lines.length === 1 ? 'Upcoming Payment' : `${lines.length} Upcoming Payments`,
+          lines.slice(0, 6).join('\n') + (lines.length > 6 ? `\n+${lines.length - 6} more` : '')
+        );
+        localStorage.setItem(seenKey, JSON.stringify(seen.concat(newlySeen)));
+      }
+    }
+
     function saveState() {
+      state.__lastModified = Date.now();
       renderApp();
       persist();
     }
@@ -1298,14 +1589,14 @@
 
     function openModal(id) { 
       if (id === 'multiAccountFilterModal') renderMultiAccountFilterUI();
-      if (id === 'settingsModal') updateRetentionStatusLine();
+      if (id === 'settingsModal') { updateRetentionStatusLine(); refreshReminderUI(); }
       document.getElementById(id).classList.remove('hidden'); 
     }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
     function switchTab(tab) {
       activeTab = tab;
-      ['forecast', 'log', 'recurring', 'debts', 'budgets'].forEach(t => {
+      ['forecast', 'log', 'recurring', 'debts', 'payoff', 'budgets'].forEach(t => {
         document.getElementById(`tab-${t}`).classList.add('hidden');
         document.getElementById(`nav-${t}`).className = 'flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800';
       });
@@ -1313,6 +1604,7 @@
       document.getElementById(`nav-${tab}`).className = 'flex flex-col items-center gap-1 text-amber-600 font-bold';
       if (tab === 'forecast') renderCalendar();
       if (tab === 'budgets') initBudgetFilters();
+      if (tab === 'payoff') renderPayoffPlanner();
       saveViewState();
     }
 
@@ -3172,6 +3464,305 @@
       saveState();
     }
 
+    // ==================== DEBT PAYOFF PLANNER ====================
+
+    function getPayoffOrder(strategy) {
+      const active = state.debts.filter(d => d.balance > 0);
+      if (strategy === 'avalanche') {
+        return active.slice().sort((a, b) => b.apr - a.apr).map(d => d.id);
+      }
+      if (strategy === 'snowball') {
+        return active.slice().sort((a, b) => a.balance - b.balance).map(d => d.id);
+      }
+      // custom
+      const saved = (state.payoffCustomOrder || []).filter(id => active.some(d => d.id === id));
+      active.forEach(d => { if (!saved.includes(d.id)) saved.push(d.id); });
+      return saved;
+    }
+
+    // Applies `amount` to debts in `order`, cascading overflow to the next
+    // debt once one is fully paid off. Returns the sum of minimum payments
+    // freed up this call (so they can roll into future months' extra pool).
+    function cascadePayoffAmount(work, order, amount, monthNum) {
+      let freed = 0;
+      let remaining = amount;
+      for (const id of order) {
+        if (remaining <= 0) break;
+        const w = work[id];
+        if (!w || w.balance <= 0.005) continue;
+        const applied = Math.min(remaining, w.balance);
+        w.balance -= applied;
+        remaining -= applied;
+        if (w.balance <= 0.005) {
+          w.balance = 0;
+          if (w.payoffMonth === null) { w.payoffMonth = monthNum; freed += w.minPayment; }
+        }
+      }
+      return freed;
+    }
+
+    // Core simulator. `order` = debt ids in the priority order extra $ goes to.
+    // `minOverrides` = { debtId: amountString }. `lumpSums` = [{date, amount, debtId}].
+    function simulateDebtPayoff(order, extraMonthly, minOverrides, lumpSums) {
+      const active = state.debts.filter(d => d.balance > 0);
+      if (active.length === 0) return { months: 0, totalInterest: 0, perDebt: {}, neverPaysOff: false };
+
+      const idsInOrder = order.filter(id => active.some(d => d.id === id));
+      active.forEach(d => { if (!idsInOrder.includes(d.id)) idsInOrder.push(d.id); });
+
+      const work = {};
+      active.forEach(d => {
+        const override = minOverrides && minOverrides[d.id];
+        work[d.id] = {
+          balance: d.balance,
+          apr: d.apr,
+          minPayment: (override !== undefined && override !== '' && !isNaN(parseFloat(override))) ? Math.max(0, parseFloat(override)) : d.minPayment,
+          promoEnabled: d.promoEnabled,
+          promoApr: parseFloat(d.promoApr || 0),
+          promoMonths: parseInt(d.promoMonths || 0),
+          promoEndDate: d.promoEnabled && d.promoEndDate ? parseLocalDate(d.promoEndDate) : null,
+          payoffMonth: null
+        };
+      });
+
+      const lumpByMonth = {};
+      (lumpSums || []).forEach(ls => {
+        if (!ls.date || !ls.amount || parseFloat(ls.amount) <= 0) return;
+        const key = ls.date.slice(0, 7);
+        if (!lumpByMonth[key]) lumpByMonth[key] = [];
+        lumpByMonth[key].push(ls);
+      });
+
+      const curDate = new Date();
+      let months = 0;
+      let totalInterest = 0;
+      let rolledExtra = 0;
+      const MAX_MONTHS = 600;
+
+      while (months < MAX_MONTHS) {
+        const anyActive = idsInOrder.some(id => work[id].balance > 0.005);
+        if (!anyActive) break;
+        months++;
+        curDate.setMonth(curDate.getMonth() + 1);
+        const monthKey = formatLocalDate(curDate).slice(0, 7);
+
+        // Interest + minimum payments
+        idsInOrder.forEach(id => {
+          const w = work[id];
+          if (w.balance <= 0.005) return;
+          let activeApr = w.apr;
+          if (w.promoEnabled) {
+            if (w.promoEndDate && curDate <= w.promoEndDate) activeApr = w.promoApr;
+            else if (w.promoMonths > 0 && months <= w.promoMonths) activeApr = w.promoApr;
+          }
+          const interest = w.balance * (activeApr / 100 / 12);
+          totalInterest += interest;
+          w.balance += interest;
+          const pay = Math.min(w.minPayment, w.balance);
+          w.balance -= pay;
+          if (w.balance <= 0.005) { w.balance = 0; if (w.payoffMonth === null) { w.payoffMonth = months; rolledExtra += w.minPayment; } }
+        });
+
+        // Lump sums scheduled this month
+        (lumpByMonth[monthKey] || []).forEach(ls => {
+          let thisOrder = idsInOrder;
+          if (ls.debtId && ls.debtId !== 'next' && work[ls.debtId] && work[ls.debtId].balance > 0.005) {
+            thisOrder = [ls.debtId, ...idsInOrder.filter(x => x !== ls.debtId)];
+          }
+          rolledExtra += cascadePayoffAmount(work, thisOrder, parseFloat(ls.amount) || 0, months);
+        });
+
+        // Extra monthly + anything freed up from paid-off debts so far
+        const pool = (extraMonthly || 0) + rolledExtra;
+        rolledExtra += cascadePayoffAmount(work, idsInOrder, pool, months);
+      }
+
+      const neverPaysOff = idsInOrder.some(id => work[id].balance > 0.005);
+      const perDebt = {};
+      idsInOrder.forEach(id => {
+        perDebt[id] = { payoffMonth: work[id].payoffMonth };
+      });
+
+      return { months: neverPaysOff ? null : months, totalInterest, perDebt, neverPaysOff };
+    }
+
+    function addMonthsToToday(n) {
+      const d = new Date();
+      d.setMonth(d.getMonth() + n);
+      return d;
+    }
+
+    function setPayoffStrategy(strategy) {
+      state.payoffStrategy = strategy;
+      saveState();
+      renderPayoffPlanner();
+    }
+
+    function movePayoffOrder(debtId, dir) {
+      const order = getPayoffOrder('custom');
+      const idx = order.indexOf(debtId);
+      const swapWith = idx + dir;
+      if (swapWith < 0 || swapWith >= order.length) return;
+      [order[idx], order[swapWith]] = [order[swapWith], order[idx]];
+      state.payoffCustomOrder = order;
+      saveState();
+      renderPayoffPlanner();
+    }
+
+    function updatePayoffExtraMonthly(val) {
+      state.payoffExtraMonthly = Math.max(0, parseFloat(val) || 0);
+      saveState();
+      renderPayoffPlanner();
+    }
+
+    function updatePayoffMinOverride(debtId, val) {
+      if (!state.payoffMinOverrides) state.payoffMinOverrides = {};
+      state.payoffMinOverrides[debtId] = val;
+      saveState();
+      renderPayoffPlanner();
+    }
+
+    function addPayoffLumpSum() {
+      if (!state.payoffLumpSums) state.payoffLumpSums = [];
+      state.payoffLumpSums.push({ id: 'lump-' + Date.now(), date: formatLocalDate(new Date()), amount: 0, debtId: 'next' });
+      saveState();
+      renderPayoffPlanner();
+    }
+
+    function updatePayoffLumpSum(id, field, val) {
+      const ls = state.payoffLumpSums.find(x => x.id === id);
+      if (!ls) return;
+      ls[field] = field === 'amount' ? (parseFloat(val) || 0) : val;
+      saveState();
+      renderPayoffPlanner();
+    }
+
+    function deletePayoffLumpSum(id) {
+      state.payoffLumpSums = state.payoffLumpSums.filter(x => x.id !== id);
+      saveState();
+      renderPayoffPlanner();
+    }
+
+    function fmtPayoffDate(months) {
+      if (months === null || months === undefined) return 'Never (payments too low)';
+      const d = addMonthsToToday(months);
+      return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+
+    function renderPayoffPlanner() {
+      const active = state.debts.filter(d => d.balance > 0);
+      const empty = document.getElementById('payoffEmptyState');
+      const content = document.getElementById('payoffContent');
+      if (active.length === 0) {
+        empty.classList.remove('hidden');
+        content.classList.add('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+      content.classList.remove('hidden');
+
+      const strategy = state.payoffStrategy || 'avalanche';
+      ['avalanche', 'snowball', 'custom'].forEach(s => {
+        const btn = document.getElementById(`btnStrat${s[0].toUpperCase()}${s.slice(1)}`);
+        btn.className = 'flex-1 py-1.5 rounded-lg text-xs font-bold ' + (s === strategy ? 'bg-amber-500 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900');
+      });
+      document.getElementById('payoffStrategyHint').textContent =
+        strategy === 'avalanche' ? 'Highest APR first — saves the most on interest.'
+        : strategy === 'snowball' ? 'Smallest balance first — fastest early wins to build momentum.'
+        : 'Your own order — use the arrows below to reorder.';
+
+      const order = getPayoffOrder(strategy);
+      const extraMonthly = state.payoffExtraMonthly || 0;
+      const minOverrides = state.payoffMinOverrides || {};
+      const lumpSums = state.payoffLumpSums || [];
+      document.getElementById('payoffExtraMonthlyInput').value = extraMonthly;
+
+      const result = simulateDebtPayoff(order, extraMonthly, minOverrides, lumpSums);
+      document.getElementById('payoffFreeDate').textContent = fmtPayoffDate(result.months);
+      document.getElementById('payoffFreeSub').textContent = result.months === null
+        ? 'Minimum payments alone won\'t cover interest on at least one debt — add extra or raise a minimum.'
+        : `${result.months} months from now \u00b7 ~${fmtMoney(result.totalInterest)} interest total`;
+
+      // Comparison strip: same inputs, all three strategies
+      const cmpDefs = [
+        { key: 'avalanche', label: 'Avalanche' },
+        { key: 'snowball', label: 'Snowball' },
+        { key: 'custom', label: 'Custom' }
+      ];
+      document.getElementById('payoffComparison').innerHTML = cmpDefs.map(c => {
+        const o = getPayoffOrder(c.key);
+        const r = simulateDebtPayoff(o, extraMonthly, minOverrides, lumpSums);
+        const isActive = c.key === strategy;
+        return `
+          <button onclick="setPayoffStrategy('${c.key}')" class="p-2 rounded-lg border text-center ${isActive ? 'bg-amber-50 border-amber-400' : 'bg-white border-gray-300'}">
+            <div class="text-[9px] font-bold uppercase ${isActive ? 'text-amber-700' : 'text-gray-500'}">${c.label}</div>
+            <div class="text-[10px] font-mono font-bold text-gray-800 mt-0.5">${r.months === null ? 'Never' : (r.months < 12 ? r.months + ' mo' : (r.months / 12).toFixed(1) + ' yr')}</div>
+          </button>
+        `;
+      }).join('');
+
+      // Lump sums
+      const lumpList = document.getElementById('payoffLumpSumsList');
+      const lumpHint = document.getElementById('payoffLumpSumEmptyHint');
+      if (lumpSums.length === 0) {
+        lumpList.innerHTML = '';
+        lumpHint.classList.remove('hidden');
+      } else {
+        lumpHint.classList.add('hidden');
+        lumpList.innerHTML = lumpSums.map(ls => `
+          <div class="grid grid-cols-12 gap-1.5 items-center">
+            <input type="date" value="${ls.date}" onchange="updatePayoffLumpSum('${ls.id}','date',this.value)" class="col-span-4 bg-gray-50 border border-gray-300 rounded-lg p-1.5 text-[11px] text-gray-800">
+            <div class="col-span-3 flex items-center bg-gray-50 border border-gray-300 rounded-lg px-1.5">
+              <span class="text-gray-500 text-[11px]">$</span>
+              <input type="number" min="0" step="10" value="${ls.amount}" onchange="updatePayoffLumpSum('${ls.id}','amount',this.value)" class="w-full bg-transparent p-1.5 text-[11px] text-gray-800">
+            </div>
+            <select onchange="updatePayoffLumpSum('${ls.id}','debtId',this.value)" class="select-custom col-span-4 bg-gray-50 border border-gray-300 rounded-lg p-1.5 text-[11px] text-gray-800">
+              <option value="next" ${ls.debtId === 'next' ? 'selected' : ''}>Whichever's next</option>
+              ${active.map(d => `<option value="${d.id}" ${ls.debtId === d.id ? 'selected' : ''}>${d.name}</option>`).join('')}
+            </select>
+            <button onclick="deletePayoffLumpSum('${ls.id}')" class="col-span-1 text-gray-400 hover:text-red-600 text-center"><i class="fa-solid fa-trash text-[11px]"></i></button>
+          </div>
+        `).join('');
+      }
+
+      // Order list
+      document.getElementById('payoffOrderHint').textContent = strategy === 'custom' ? 'Use ↑/↓ to reorder' : 'Order is automatic for this strategy';
+      document.getElementById('payoffOrderList').innerHTML = order.map((id, idx) => {
+        const d = active.find(x => x.id === id);
+        const payoffMonth = result.perDebt[id] ? result.perDebt[id].payoffMonth : null;
+        const overrideVal = minOverrides[id] !== undefined ? minOverrides[id] : '';
+        return `
+          <div class="p-2.5 rounded-xl bg-white border border-gray-300 shadow-sm">
+            <div class="flex items-center gap-2">
+              <div class="w-5 h-5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold flex items-center justify-center shrink-0">${idx + 1}</div>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-gray-900 truncate">${d.name}</div>
+                <div class="text-[10px] text-gray-500 font-mono">${fmtMoney(d.balance)} \u00b7 ${d.apr}% APR</div>
+              </div>
+              ${strategy === 'custom' ? `
+                <div class="flex flex-col gap-0.5">
+                  <button onclick="movePayoffOrder('${id}',-1)" ${idx === 0 ? 'disabled' : ''} class="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-800 disabled:opacity-20"><i class="fa-solid fa-chevron-up text-[9px]"></i></button>
+                  <button onclick="movePayoffOrder('${id}',1)" ${idx === order.length - 1 ? 'disabled' : ''} class="w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-800 disabled:opacity-20"><i class="fa-solid fa-chevron-down text-[9px]"></i></button>
+                </div>
+              ` : ''}
+              <div class="text-right shrink-0">
+                <div class="text-[9px] text-gray-400 uppercase font-bold">Paid Off</div>
+                <div class="text-[10px] font-mono font-bold text-emerald-700">${payoffMonth === null ? 'Never' : fmtPayoffDate(payoffMonth)}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-100">
+              <span class="text-[10px] text-gray-500">Min payment override:</span>
+              <div class="flex items-center bg-gray-50 border border-gray-300 rounded-lg px-1.5 flex-1">
+                <span class="text-gray-400 text-[10px]">$</span>
+                <input type="number" min="0" step="5" placeholder="${d.minPayment}" value="${overrideVal}" onchange="updatePayoffMinOverride('${id}',this.value)" class="w-full bg-transparent p-1 text-[10px] text-gray-800">
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+
     function saveBudget(e) {
       e.preventDefault();
       const category = document.getElementById('budCategory').value;
@@ -3356,6 +3947,7 @@
       renderApp();
       initCalendarSwipe();
       initSyncOnBoot();
+      checkDueReminders();
     };
 
     if ('serviceWorker' in navigator) {
