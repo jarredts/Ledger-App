@@ -600,6 +600,11 @@
           <i class="fa-solid fa-book-open"></i> User Guide
         </button>
 
+        <button onclick="forceAppUpdate()" class="w-full bg-sky-50 border border-sky-200 text-sky-700 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-sky-100">
+          <i class="fa-solid fa-rotate"></i> Force Update (no data loss)
+        </button>
+        <p class="text-[10px] text-gray-400 -mt-1 px-1">If the app seems to be running an old version after you've pushed changes, tap this instead of uninstalling. It clears the app's cached files and pulls everything fresh — your data isn't touched.</p>
+
         <!-- Appearance: always visible, not tucked in an accordion, since it's a quick everyday toggle -->
         <div class="flex items-center justify-between bg-gray-50 border border-gray-300 rounded-xl p-3">
           <div class="flex items-center gap-2">
@@ -4771,6 +4776,29 @@
       initSyncOnBoot();
       checkDueReminders();
     };
+
+    // Nukes every registered service worker and every Cache Storage bucket for
+    // this site, then reloads. This is the "uninstall and reinstall" workflow
+    // without actually uninstalling — your data lives in localStorage, which
+    // this never touches, so nothing is lost. Use this when the app seems
+    // stuck on an old version despite new files being live on the server.
+    async function forceAppUpdate() {
+      if (!confirm("This will clear the app's cached files and reload with a fresh copy from the server. Your accounts, transactions, and settings are stored separately and will NOT be affected. Continue?")) return;
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        }
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+      } catch (e) {
+        console.error('Force update cleanup failed', e);
+      }
+      // Bypass any remaining HTTP cache on the reload itself.
+      window.location.href = window.location.pathname + '?_refresh=' + Date.now();
+    }
 
     if ('serviceWorker' in navigator) {
       let refreshingOnce = false;
