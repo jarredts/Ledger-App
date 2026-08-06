@@ -59,15 +59,16 @@
        tap elsewhere or tap another info icon. */
     .info-icon-btn {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 14px; height: 14px; border-radius: 9999px;
-      background: #E5E7EB; color: #6B7280;
-      font-size: 9px; font-weight: 800; font-style: normal;
-      flex-shrink: 0; cursor: pointer; user-select: none;
-      line-height: 1;
+      width: 15px; height: 15px; border-radius: 9999px;
+      background: #DBEAFE; color: #2563EB;
+      font-size: 9px; flex-shrink: 0; cursor: pointer; user-select: none;
+      line-height: 1; transition: background 0.15s, color 0.15s;
+      text-transform: none;
     }
-    .info-icon-btn:hover { background: #D97706; color: #fff; }
-    html.dark .info-icon-btn { background: #334155; color: #94a3b8; }
-    html.dark .info-icon-btn:hover { background: #D97706; color: #fff; }
+    .info-icon-btn i { font-size: 9px; }
+    .info-icon-btn:hover { background: #3B82F6; color: #fff; }
+    html.dark .info-icon-btn { background: #1e3a5f; color: #7cb3f5; }
+    html.dark .info-icon-btn:hover { background: #3B82F6; color: #fff; }
     .info-tip {
       position: relative;
     }
@@ -78,6 +79,7 @@
       font-size: 10.5px; font-weight: 400; font-style: normal; line-height: 1.4;
       padding: 8px 10px; border-radius: 10px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      text-transform: none;
     }
     html.dark .info-tip-bubble { background: #F9FAFB; color: #1F2937; }
     .select-custom {
@@ -146,21 +148,40 @@
     }
     html.dark ::-webkit-scrollbar { background: #0f172a; }
     html.dark ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+    /* ---- VISUAL REFRESH ----
+       Softer, deeper shadows and slightly bigger corner radii applied via
+       Tailwind class overrides, so every card in the app gets the same
+       lift without hand-editing every element. */
+    .shadow-sm {
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 3px 10px rgba(15,23,42,0.05) !important;
+    }
+    .shadow-md {
+      box-shadow: 0 2px 6px rgba(15,23,42,0.06), 0 6px 16px rgba(15,23,42,0.07) !important;
+    }
+    .shadow-lg {
+      box-shadow: 0 4px 10px rgba(15,23,42,0.07), 0 10px 28px rgba(15,23,42,0.10) !important;
+    }
+    .rounded-xl { border-radius: 14px !important; }
+    .rounded-2xl { border-radius: 18px !important; }
+    .rounded-lg { border-radius: 10px !important; }
+    button, .transition-all { transition: all 0.15s ease; }
+    button:active { transform: scale(0.97); }
   </style>
 </head>
 <body class="min-h-screen pb-24 text-gray-800 bg-gray-100">
 
   <!-- Header -->
-  <header class="px-4 py-2.5 border-b border-gray-200 bg-white sticky top-0 z-30 flex justify-between items-center shadow-sm max-w-md mx-auto">
+  <header class="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-white to-amber-50/40 sticky top-0 z-30 flex justify-between items-center shadow-sm max-w-md mx-auto">
     <div>
       <div id="netWorthLabel" class="text-[9px] text-gray-500 font-mono font-bold tracking-wider uppercase">FORECASTED NET WORTH (1 YR)</div>
       <div id="netWorthDisplay" class="text-xl font-mono font-bold text-gray-900">$0.00</div>
     </div>
     <div class="flex items-center gap-2">
-      <button onclick="openModal('settingsModal')" title="Settings" class="w-8 h-8 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center text-amber-600 hover:bg-amber-50">
+      <button onclick="openModal('settingsModal')" title="Settings" class="w-9 h-9 rounded-full bg-white border border-amber-200 flex items-center justify-center text-amber-600 hover:bg-amber-500 hover:text-white hover:border-amber-500 shadow-sm">
         <i class="fa-solid fa-gear text-sm"></i>
       </button>
-      <button onclick="openModal('accountModal')" title="Accounts" class="w-8 h-8 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center text-amber-600 hover:bg-amber-50">
+      <button onclick="openModal('accountModal')" title="Accounts" class="w-9 h-9 rounded-full bg-white border border-amber-200 flex items-center justify-center text-amber-600 hover:bg-amber-500 hover:text-white hover:border-amber-500 shadow-sm">
         <i class="fa-solid fa-wallet text-sm"></i>
       </button>
     </div>
@@ -415,7 +436,7 @@
           <div class="flex items-center gap-1.5">
             <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Extra Monthly Payment</label>
             <span class="info-tip inline-block align-middle">
-              <span class="info-icon-btn" onclick="toggleInfoTip('infoExtraMonthly', event)" title="More info">i</span>
+              <span class="info-icon-btn" onclick="toggleInfoTip('infoExtraMonthly', event)" title="More info"><i class="fa-solid fa-info"></i></span>
               <span id="infoExtraMonthly" class="info-tip-bubble hidden">Applied to whichever debt is first in the order below. As each debt is paid off, its minimum rolls into the extra amount for the next one (classic snowball/avalanche behavior). This and the rollover math are sandbox-only for now — they shape the estimates on this tab but don't touch your Cash or Debt calendars yet. Lump sums (below) can be pushed onto your real calendars individually.</span>
             </span>
           </div>
@@ -428,13 +449,15 @@
         <!-- Auto-suggested opportunities -->
         <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 shadow-sm space-y-2">
           <div class="flex items-center justify-between">
-            <label class="text-[10px] font-mono font-bold text-amber-800 uppercase flex items-center gap-1.5">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> Suggested Opportunities
+            <div class="flex items-center gap-1.5">
+              <label class="text-[10px] font-mono font-bold text-amber-800 uppercase flex items-center gap-1.5">
+                <i class="fa-solid fa-bullseye text-amber-500"></i> Suggested Opportunities
+              </label>
               <span class="info-tip inline-block align-middle">
-                <span class="info-icon-btn" onclick="toggleInfoTip('infoSuggested', event)" title="More info">i</span>
+                <span class="info-icon-btn" onclick="toggleInfoTip('infoSuggested', event)" title="More info"><i class="fa-solid fa-info"></i></span>
                 <span id="infoSuggested" class="info-tip-bubble hidden">Scans your logged one-time income, recurring paychecks for extra pay periods (like a 5th weekly paycheck), and upcoming months projected to close out with a net surplus above your threshold.</span>
               </span>
-            </label>
+            </div>
           </div>
           <div class="flex items-center gap-2 text-[10px] text-amber-800">
             <span>Suggest income or month-end surplus over</span>
@@ -453,7 +476,7 @@
             <div class="flex items-center gap-1.5">
               <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Lump Sum Payoffs</label>
               <span class="info-tip inline-block align-middle">
-                <span class="info-icon-btn" onclick="toggleInfoTip('infoLumpSum', event)" title="More info">i</span>
+                <span class="info-icon-btn" onclick="toggleInfoTip('infoLumpSum', event)" title="More info"><i class="fa-solid fa-info"></i></span>
                 <span id="infoLumpSum" class="info-tip-bubble hidden">Pick a specific debt (not "Whichever's next"), then hit "Apply to forecast" to post it as a real transaction on your Cash calendar (money out) and Debt calendar (balance down) — both editable and deletable right there, and it'll stay in sync with this row.</span>
               </span>
             </div>
@@ -515,19 +538,19 @@
 
   <!-- Bottom Navigation -->
   <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-2 z-40 max-w-md mx-auto shadow-lg">
-    <button id="nav-forecast" onclick="switchTab('forecast')" class="flex flex-col items-center gap-1 text-amber-600">
+    <button id="nav-forecast" onclick="switchTab('forecast')" class="flex flex-col items-center gap-1 text-amber-600 font-bold bg-amber-50 rounded-2xl px-3.5 py-1.5 -my-1">
       <i class="fa-solid fa-calendar-days text-base"></i><span class="text-[10px] font-medium">Forecast</span>
     </button>
-    <button id="nav-transactions" onclick="switchTab('transactions')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800">
+    <button id="nav-transactions" onclick="switchTab('transactions')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800 px-3.5 py-1.5 -my-1">
       <i class="fa-solid fa-receipt text-base"></i><span class="text-[10px] font-medium">Transactions</span>
     </button>
-    <button id="nav-debts" onclick="switchTab('debts')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800">
+    <button id="nav-debts" onclick="switchTab('debts')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800 px-3.5 py-1.5 -my-1">
       <i class="fa-solid fa-credit-card text-base"></i><span class="text-[10px] font-medium">Debts</span>
     </button>
-    <button id="nav-payoff" onclick="switchTab('payoff')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800">
+    <button id="nav-payoff" onclick="switchTab('payoff')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800 px-3.5 py-1.5 -my-1">
       <i class="fa-solid fa-flag-checkered text-base"></i><span class="text-[10px] font-medium">Payoff</span>
     </button>
-    <button id="nav-budgets" onclick="switchTab('budgets')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800">
+    <button id="nav-budgets" onclick="switchTab('budgets')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800 px-3.5 py-1.5 -my-1">
       <i class="fa-solid fa-bullseye text-base"></i><span class="text-[10px] font-medium">Budgets</span>
     </button>
   </nav>
@@ -1813,10 +1836,10 @@
       activeTab = tab;
       ['forecast', 'transactions', 'debts', 'payoff', 'budgets'].forEach(t => {
         document.getElementById(`tab-${t}`).classList.add('hidden');
-        document.getElementById(`nav-${t}`).className = 'flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800';
+        document.getElementById(`nav-${t}`).className = 'flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800 px-3.5 py-1.5 -my-1';
       });
       document.getElementById(`tab-${tab}`).classList.remove('hidden');
-      document.getElementById(`nav-${tab}`).className = 'flex flex-col items-center gap-1 text-amber-600 font-bold';
+      document.getElementById(`nav-${tab}`).className = 'flex flex-col items-center gap-1 text-amber-600 font-bold bg-amber-50 rounded-2xl px-3.5 py-1.5 -my-1';
       if (tab === 'forecast') renderCalendar();
       if (tab === 'budgets') initBudgetFilters();
       if (tab === 'payoff') renderPayoffPlanner();
@@ -2006,7 +2029,7 @@
       const id = 'infotip-' + (_infoTipCounter++);
       const escaped = String(text).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
       return `<span class="info-tip inline-block align-middle">
-        <span class="info-icon-btn" onclick="toggleInfoTip('${id}', event)" title="More info">i</span>
+        <span class="info-icon-btn" onclick="toggleInfoTip('${id}', event)" title="More info"><i class="fa-solid fa-info"></i></span>
         <span id="${id}" class="info-tip-bubble hidden">${escaped}</span>
       </span>`;
     }
