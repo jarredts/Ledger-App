@@ -41,45 +41,12 @@
       }
     } catch (e) { /* ignore */ }
   </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body { 
-      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
       background-color: #F4F5F7; 
       color: #1F2937; 
-      -webkit-font-smoothing: antialiased;
     }
-    .font-mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
-
-    /* ---- INFO ICON / TOOLTIP ----
-       A small tappable (i) badge that reveals a short instructional note.
-       Tap-to-toggle (not hover-only) so it works on touch. Closes when you
-       tap elsewhere or tap another info icon. */
-    .info-icon-btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 14px; height: 14px; border-radius: 9999px;
-      background: #E5E7EB; color: #6B7280;
-      font-size: 9px; font-weight: 800; font-style: normal;
-      flex-shrink: 0; cursor: pointer; user-select: none;
-      line-height: 1;
-    }
-    .info-icon-btn:hover { background: #D97706; color: #fff; }
-    html.dark .info-icon-btn { background: #334155; color: #94a3b8; }
-    html.dark .info-icon-btn:hover { background: #D97706; color: #fff; }
-    .info-tip {
-      position: relative;
-    }
-    .info-tip-bubble {
-      position: absolute; z-index: 30; top: calc(100% + 6px); left: 0;
-      width: 240px; max-width: 70vw;
-      background: #1F2937; color: #F9FAFB;
-      font-size: 10.5px; font-weight: 400; font-style: normal; line-height: 1.4;
-      padding: 8px 10px; border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-    }
-    html.dark .info-tip-bubble { background: #F9FAFB; color: #1F2937; }
     .select-custom {
       background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
       background-position: right 0.5rem center;
@@ -149,7 +116,6 @@
   </style>
 </head>
 <body class="min-h-screen pb-24 text-gray-800 bg-gray-100">
-  <div class="bg-emerald-600 text-white text-center text-xs font-bold py-1.5 sticky top-0 z-[100]">🧪 TEST ENVIRONMENT — Separate Data From Your Real App</div>
 
   <!-- Header -->
   <header class="px-4 py-2.5 border-b border-gray-200 bg-white sticky top-0 z-30 flex justify-between items-center shadow-sm max-w-md mx-auto">
@@ -329,7 +295,7 @@
         <div class="flex items-center justify-between gap-2">
           <input id="logSearchInput" type="text" oninput="renderLog()" placeholder="Search description, category, or amount..." class="flex-1 bg-white border border-gray-300 rounded-xl p-2.5 text-xs text-gray-800 shadow-sm">
           <label class="flex items-center gap-1 text-[10px] text-gray-600 font-semibold cursor-pointer whitespace-nowrap bg-white border border-gray-300 p-2.5 rounded-xl shadow-sm">
-            <input type="checkbox" id="chkHidePastLog" onchange="renderLog(); saveViewState();" class="w-3.5 h-3.5 text-amber-500 rounded">
+            <input type="checkbox" id="chkHidePastLog" onchange="renderLog()" class="w-3.5 h-3.5 text-amber-500 rounded">
             <span>Hide Past</span>
           </label>
         </div>
@@ -345,9 +311,9 @@
           </div>
           <div class="flex items-center gap-1.5">
             <label class="text-[10px] text-gray-500 font-semibold">Sort:</label>
-            <select id="logSortSelect" onchange="renderLog(); saveViewState();" class="bg-white border border-gray-300 rounded-lg text-[11px] text-gray-700 py-1 px-2 shadow-sm">
-              <option value="date_asc" selected>Date (Oldest First)</option>
+            <select id="logSortSelect" onchange="renderLog()" class="bg-white border border-gray-300 rounded-lg text-[11px] text-gray-700 py-1 px-2 shadow-sm">
               <option value="date_desc">Date (Newest First)</option>
+              <option value="date_asc">Date (Oldest First)</option>
             </select>
           </div>
         </div>
@@ -413,29 +379,18 @@
 
         <!-- Extra payment inputs -->
         <div class="p-3 rounded-xl bg-white border border-gray-300 shadow-sm space-y-2">
-          <div class="flex items-center gap-1.5">
-            <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Extra Monthly Payment</label>
-            <span class="info-tip inline-block align-middle">
-              <span class="info-icon-btn" onclick="toggleInfoTip('infoExtraMonthly', event)" title="More info">i</span>
-              <span id="infoExtraMonthly" class="info-tip-bubble hidden">Applied to whichever debt is first in the order below. As each debt is paid off, its minimum rolls into the extra amount for the next one (classic snowball/avalanche behavior). This and the rollover math are sandbox-only for now — they shape the estimates on this tab but don't touch your Cash or Debt calendars yet. Lump sums (below) can be pushed onto your real calendars individually.</span>
-            </span>
-          </div>
+          <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Extra Monthly Payment</label>
           <div class="flex items-center gap-2">
             <span class="text-gray-500 font-mono">$</span>
             <input id="payoffExtraMonthlyInput" type="number" min="0" step="10" value="0" onchange="updatePayoffExtraMonthly(this.value)" class="flex-1 bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs font-mono text-gray-800">
           </div>
+          <p class="text-[10px] text-gray-400">Applied to whichever debt is first in the order below. As each debt is paid off, its minimum rolls into the extra amount for the next one (classic snowball/avalanche behavior).</p>
         </div>
 
         <!-- Auto-suggested opportunities -->
         <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 shadow-sm space-y-2">
           <div class="flex items-center justify-between">
-            <label class="text-[10px] font-mono font-bold text-amber-800 uppercase flex items-center gap-1.5">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> Suggested Opportunities
-              <span class="info-tip inline-block align-middle">
-                <span class="info-icon-btn" onclick="toggleInfoTip('infoSuggested', event)" title="More info">i</span>
-                <span id="infoSuggested" class="info-tip-bubble hidden">Scans your logged one-time income, recurring paychecks for extra pay periods (like a 5th weekly paycheck), and upcoming months projected to close out with a net surplus above your threshold.</span>
-              </span>
-            </label>
+            <label class="text-[10px] font-mono font-bold text-amber-800 uppercase flex items-center gap-1.5"><i class="fa-solid fa-wand-magic-sparkles"></i> Suggested Opportunities</label>
           </div>
           <div class="flex items-center gap-2 text-[10px] text-amber-800">
             <span>Suggest income or month-end surplus over</span>
@@ -445,19 +400,13 @@
             </div>
           </div>
           <div id="payoffSuggestionsList" class="space-y-1.5"></div>
-          <p id="payoffSuggestionsEmptyHint" class="text-[10px] text-amber-700 italic">Nothing to suggest right now.</p>
+          <p id="payoffSuggestionsEmptyHint" class="text-[10px] text-amber-700 italic">Scans your logged one-time income, recurring paychecks for extra pay periods (like a 5th weekly paycheck), and upcoming months projected to close out with a net surplus above your threshold.</p>
         </div>
 
         <!-- Lump sums -->
         <div class="p-3 rounded-xl bg-white border border-gray-300 shadow-sm space-y-2">
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5">
-              <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Lump Sum Payoffs</label>
-              <span class="info-tip inline-block align-middle">
-                <span class="info-icon-btn" onclick="toggleInfoTip('infoLumpSum', event)" title="More info">i</span>
-                <span id="infoLumpSum" class="info-tip-bubble hidden">Pick a specific debt (not "Whichever's next"), then hit "Apply to forecast" to post it as a real transaction on your Cash calendar (money out) and Debt calendar (balance down) — both editable and deletable right there, and it'll stay in sync with this row.</span>
-              </span>
-            </div>
+            <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Lump Sum Payoffs</label>
             <button onclick="addPayoffLumpSum()" class="text-[10px] text-amber-600 font-semibold hover:underline">+ Add Manually</button>
           </div>
           <div id="payoffLumpSumsList" class="space-y-2"></div>
@@ -1232,7 +1181,7 @@
       debtPaymentOverrides: {}
     };
 
-    const STORAGE_KEY = 'ledger_v6_full_state_TEST';
+    const STORAGE_KEY = 'ledger_v6_full_state';
     const VIEW_STATE_KEY = 'ledger_view_state_v1';
     let state = DEMO_STATE;
     let activeTab = 'forecast';
@@ -1270,7 +1219,7 @@
     // Nothing here is committed to source or shared between users. The config
     // and sync code are only ever stored in this device's localStorage, entered
     // by hand in Settings. Without that config, none of this code does anything.
-    const SYNC_CONFIG_KEY = 'ledger_sync_config_TEST';
+    const SYNC_CONFIG_KEY = 'ledger_sync_config';
     const SYNC_META_KEY = 'ledger_sync_meta';
     let syncConfig = null;
     let firebaseApp = null;
@@ -1999,30 +1948,6 @@
       return (num < 0 ? '-$' : '$') + Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    // Renders a small tappable "i" badge that reveals `text` in a floating
-    // bubble underneath — used to tuck long explanatory copy out of the way
-    // until someone actually wants it. `id` must be unique on the page.
-    let _infoTipCounter = 0;
-    function infoIcon(text) {
-      const id = 'infotip-' + (_infoTipCounter++);
-      const escaped = String(text).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-      return `<span class="info-tip inline-block align-middle">
-        <span class="info-icon-btn" onclick="toggleInfoTip('${id}', event)" title="More info">i</span>
-        <span id="${id}" class="info-tip-bubble hidden">${escaped}</span>
-      </span>`;
-    }
-    function toggleInfoTip(id, ev) {
-      if (ev) ev.stopPropagation();
-      document.querySelectorAll('.info-tip-bubble').forEach(el => {
-        if (el.id !== id) el.classList.add('hidden');
-      });
-      const el = document.getElementById(id);
-      if (el) el.classList.toggle('hidden');
-    }
-    document.addEventListener('click', () => {
-      document.querySelectorAll('.info-tip-bubble').forEach(el => el.classList.add('hidden'));
-    });
-
     function parseLocalDate(dateStr) {
       const p = dateStr.split('-');
       return new Date(p[0], p[1] - 1, p[2]);
@@ -2049,8 +1974,6 @@
         const endInput = document.getElementById('budgetFilterEnd');
         const modeSelect = document.getElementById('budgetFilterMode');
         const logHistorySelect = document.getElementById('logHistoryWindow');
-        const logSortSelect = document.getElementById('logSortSelect');
-        const chkHidePastLog = document.getElementById('chkHidePastLog');
         localStorage.setItem(VIEW_STATE_KEY, JSON.stringify({
           activeTab,
           activeTxSubView,
@@ -2066,9 +1989,7 @@
           budgetFilterMonth: monthInput ? monthInput.value : undefined,
           budgetFilterStart: startInput ? startInput.value : undefined,
           budgetFilterEnd: endInput ? endInput.value : undefined,
-          logHistoryWindow: logHistorySelect ? logHistorySelect.value : undefined,
-          logSort: logSortSelect ? logSortSelect.value : undefined,
-          logHidePast: chkHidePastLog ? chkHidePastLog.checked : undefined
+          logHistoryWindow: logHistorySelect ? logHistorySelect.value : undefined
         }));
       } catch (e) {
         // View state is a nice-to-have, never let it break the app.
@@ -2122,14 +2043,6 @@
       if (vs.logHistoryWindow) {
         const logHistorySelect = document.getElementById('logHistoryWindow');
         if (logHistorySelect) logHistorySelect.value = vs.logHistoryWindow;
-      }
-      if (vs.logSort) {
-        const logSortSelect = document.getElementById('logSortSelect');
-        if (logSortSelect) logSortSelect.value = vs.logSort;
-      }
-      if (typeof vs.logHidePast === 'boolean') {
-        const chkHidePastLog = document.getElementById('chkHidePastLog');
-        if (chkHidePastLog) chkHidePastLog.checked = vs.logHidePast;
       }
       toggleBudgetFilterUI();
 
@@ -2964,7 +2877,7 @@
         hiddenOlderCount = beforeCount - filtered.length;
       }
 
-      const sortMode = document.getElementById('logSortSelect')?.value || 'date_asc';
+      const sortMode = document.getElementById('logSortSelect')?.value || 'date_desc';
       filtered = filtered.slice().sort((a, b) => {
         if (a.date !== b.date) {
           return sortMode === 'date_asc' ? (a.date < b.date ? -1 : 1) : (a.date > b.date ? -1 : 1);
@@ -3415,14 +3328,7 @@
       } else {
         if (id) {
           const idx = state.transactions.findIndex(x => x.id === id);
-          if (idx !== -1) {
-            const old = state.transactions[idx];
-            if (old.linkedLumpSumId) {
-              data.linkedLumpSumId = old.linkedLumpSumId;
-              syncLumpSumFromTransaction(old.linkedLumpSumId, data);
-            }
-            state.transactions[idx] = data;
-          }
+          if (idx !== -1) state.transactions[idx] = data;
         } else {
           state.transactions.push(data);
         }
@@ -3430,37 +3336,9 @@
 
       closeModal('transactionModal');
       saveState();
-      renderPayoffPlanner();
-    }
-
-    // When you edit an applied lump sum's date/amount from the calendar or
-    // log (rather than the Payoff tab), push that change back to the lump
-    // sum entry and its sibling transaction so both sides stay identical.
-    function syncLumpSumFromTransaction(lumpSumId, changedTx) {
-      const ls = (state.payoffLumpSums || []).find(x => x.id === lumpSumId);
-      if (!ls || !ls.appliedPairId) return;
-      ls.date = changedTx.date;
-      ls.amount = changedTx.amount;
-      const siblingSuffix = changedTx.id.endsWith('-cash') ? '-debt' : '-cash';
-      const sibling = state.transactions.find(x => x.id === ls.appliedPairId + siblingSuffix);
-      if (sibling) { sibling.date = changedTx.date; sibling.amount = changedTx.amount; }
     }
 
     function deleteTransaction(id) {
-      const t = state.transactions.find(x => x.id === id);
-
-      // Deleting either side of an applied lump sum (from the calendar or the
-      // log) deletes the whole lump sum: both linked transactions come out,
-      // and the Payoff Planner drops it and recalculates — matching what you
-      // see happen to your checking/debt balances.
-      if (t && t.linkedLumpSumId) {
-        state.transactions = state.transactions.filter(x => x.linkedLumpSumId !== t.linkedLumpSumId);
-        state.payoffLumpSums = (state.payoffLumpSums || []).filter(x => x.id !== t.linkedLumpSumId);
-        saveState();
-        renderPayoffPlanner();
-        return;
-      }
-
       state.transactions = state.transactions.filter(t => t.id !== id);
       saveState();
     }
@@ -4167,113 +4045,11 @@
       const ls = state.payoffLumpSums.find(x => x.id === id);
       if (!ls) return;
       ls[field] = field === 'amount' ? (parseFloat(val) || 0) : val;
-
-      // Keep the two linked real transactions (cash-out + debt-paydown) in sync
-      // if this lump sum is currently applied to the actual forecast.
-      if (ls.applied && ls.appliedPairId) {
-        if (field === 'date' || field === 'amount') {
-          const cashTx = state.transactions.find(t => t.id === ls.appliedPairId + '-cash');
-          const debtTx = state.transactions.find(t => t.id === ls.appliedPairId + '-debt');
-          const amt = parseFloat(ls.amount) || 0;
-          if (cashTx) { cashTx.date = ls.date; cashTx.amount = amt; }
-          if (debtTx) { debtTx.date = ls.date; debtTx.amount = amt; }
-        }
-        if (field === 'debtId') {
-          if (!ls.debtId || ls.debtId === 'next') {
-            // Can't apply a "whichever's next" lump sum as a real transaction —
-            // a real transaction has to hit one specific debt account. Un-apply it.
-            removeLumpSumTransactions(ls);
-            ls.applied = false;
-            ls.appliedPairId = null;
-          } else {
-            const debtTx = state.transactions.find(t => t.id === ls.appliedPairId + '-debt');
-            if (debtTx) debtTx.accountId = `debt-${ls.debtId}`;
-          }
-        }
-      }
-
-      saveState();
-      renderPayoffPlanner();
-    }
-
-    // Removes the pair of real transactions (if any) backing an applied lump sum,
-    // without touching the lump sum entry itself.
-    function removeLumpSumTransactions(ls) {
-      if (!ls || !ls.appliedPairId) return;
-      state.transactions = state.transactions.filter(t => t.linkedLumpSumId !== ls.id);
-    }
-
-    // Pushes a lump sum out of the sandbox and onto the real Cash + Debt
-    // calendars as two linked transactions: money leaving the cash account,
-    // and that same amount paying down the target debt's balance. Both are
-    // ordinary transactions — visible, editable, and deletable from the
-    // calendar like anything else — tagged with linkedLumpSumId so edits or
-    // deletes there sync back here.
-    function applyLumpSumToForecast(id) {
-      const ls = state.payoffLumpSums.find(x => x.id === id);
-      if (!ls) return;
-      const amt = parseFloat(ls.amount) || 0;
-      if (!ls.date || amt <= 0) {
-        alert('Set a date and an amount above zero before applying this to your forecast.');
-        return;
-      }
-      if (!ls.debtId || ls.debtId === 'next') {
-        alert('Pick a specific debt for this lump sum first — "Whichever\'s next" only makes sense inside the sandbox simulation. A real transaction has to hit one specific account.');
-        return;
-      }
-      if (!state.accounts || state.accounts.length === 0) {
-        alert('Add a cash account first (Accounts tab) — the lump sum needs somewhere to pull the money from.');
-        return;
-      }
-      const cashAccount = state.accounts[0];
-      const pairId = 'payofflump-' + ls.id;
-      const debtName = getAccountName(`debt-${ls.debtId}`);
-
-      state.transactions.push({
-        id: pairId + '-cash',
-        desc: `Lump Sum Payoff (${debtName})`,
-        amount: amt,
-        category: 'Debts',
-        type: 'expense',
-        accountId: cashAccount.id,
-        date: ls.date,
-        isPaid: false,
-        linkedLumpSumId: ls.id
-      });
-      state.transactions.push({
-        id: pairId + '-debt',
-        desc: `Lump Sum Payoff Applied`,
-        amount: amt,
-        category: 'Debts',
-        type: 'income',
-        accountId: `debt-${ls.debtId}`,
-        date: ls.date,
-        isPaid: false,
-        linkedLumpSumId: ls.id
-      });
-
-      ls.applied = true;
-      ls.appliedPairId = pairId;
-      saveState();
-      renderPayoffPlanner();
-    }
-
-    // Pulls an applied lump sum back into the sandbox — deletes the two linked
-    // transactions but keeps the lump sum itself in the planner so you can
-    // keep tweaking it without losing the idea.
-    function unapplyLumpSumFromForecast(id) {
-      const ls = state.payoffLumpSums.find(x => x.id === id);
-      if (!ls) return;
-      removeLumpSumTransactions(ls);
-      ls.applied = false;
-      ls.appliedPairId = null;
       saveState();
       renderPayoffPlanner();
     }
 
     function deletePayoffLumpSum(id) {
-      const ls = state.payoffLumpSums.find(x => x.id === id);
-      if (ls) removeLumpSumTransactions(ls);
       state.payoffLumpSums = state.payoffLumpSums.filter(x => x.id !== id);
       saveState();
       renderPayoffPlanner();
@@ -4386,29 +4162,18 @@
         lumpHint.classList.remove('hidden');
       } else {
         lumpHint.classList.add('hidden');
-        const sortedLumpSums = lumpSums.slice().sort((a, b) => (a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : 0);
-        lumpList.innerHTML = sortedLumpSums.map(ls => `
-          <div class="p-1.5 rounded-lg ${ls.applied ? 'bg-emerald-50 border border-emerald-300' : ''}">
-            <div class="grid grid-cols-12 gap-1.5 items-center">
-              <input type="date" value="${ls.date}" onchange="updatePayoffLumpSum('${ls.id}','date',this.value)" class="col-span-4 bg-gray-50 border border-gray-300 rounded-lg p-1.5 text-[11px] text-gray-800">
-              <div class="col-span-3 flex items-center bg-gray-50 border border-gray-300 rounded-lg px-1.5">
-                <span class="text-gray-500 text-[11px]">$</span>
-                <input type="number" min="0" step="10" value="${ls.amount}" onchange="updatePayoffLumpSum('${ls.id}','amount',this.value)" class="w-full bg-transparent p-1.5 text-[11px] text-gray-800">
-              </div>
-              <select onchange="updatePayoffLumpSum('${ls.id}','debtId',this.value)" class="select-custom col-span-4 bg-gray-50 border border-gray-300 rounded-lg p-1.5 text-[11px] text-gray-800">
-                <option value="next" ${ls.debtId === 'next' ? 'selected' : ''}>Whichever's next</option>
-                ${active.map(d => `<option value="${d.id}" ${ls.debtId === d.id ? 'selected' : ''}>${d.name}</option>`).join('')}
-              </select>
-              <button onclick="deletePayoffLumpSum('${ls.id}')" title="Delete this lump sum entirely" class="col-span-1 text-gray-400 hover:text-red-600 text-center"><i class="fa-solid fa-trash text-[11px]"></i></button>
+        lumpList.innerHTML = lumpSums.map(ls => `
+          <div class="grid grid-cols-12 gap-1.5 items-center">
+            <input type="date" value="${ls.date}" onchange="updatePayoffLumpSum('${ls.id}','date',this.value)" class="col-span-4 bg-gray-50 border border-gray-300 rounded-lg p-1.5 text-[11px] text-gray-800">
+            <div class="col-span-3 flex items-center bg-gray-50 border border-gray-300 rounded-lg px-1.5">
+              <span class="text-gray-500 text-[11px]">$</span>
+              <input type="number" min="0" step="10" value="${ls.amount}" onchange="updatePayoffLumpSum('${ls.id}','amount',this.value)" class="w-full bg-transparent p-1.5 text-[11px] text-gray-800">
             </div>
-            <div class="flex items-center justify-between mt-1 pl-0.5">
-              ${ls.applied
-                ? `<span class="text-[9px] font-bold text-emerald-700 uppercase"><i class="fa-solid fa-check"></i> On your Cash &amp; Debt calendars</span>
-                   <button onclick="unapplyLumpSumFromForecast('${ls.id}')" class="text-[9px] font-semibold text-gray-500 hover:text-gray-800 underline">Remove from forecast</button>`
-                : `<span class="text-[9px] text-gray-400">Sandbox only — not on your calendars yet</span>
-                   <button onclick="applyLumpSumToForecast('${ls.id}')" class="text-[9px] font-semibold text-amber-700 hover:text-amber-900 underline">Apply to forecast</button>`
-              }
-            </div>
+            <select onchange="updatePayoffLumpSum('${ls.id}','debtId',this.value)" class="select-custom col-span-4 bg-gray-50 border border-gray-300 rounded-lg p-1.5 text-[11px] text-gray-800">
+              <option value="next" ${ls.debtId === 'next' ? 'selected' : ''}>Whichever's next</option>
+              ${active.map(d => `<option value="${d.id}" ${ls.debtId === d.id ? 'selected' : ''}>${d.name}</option>`).join('')}
+            </select>
+            <button onclick="deletePayoffLumpSum('${ls.id}')" class="col-span-1 text-gray-400 hover:text-red-600 text-center"><i class="fa-solid fa-trash text-[11px]"></i></button>
           </div>
         `).join('');
       }
