@@ -440,13 +440,30 @@
             <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Extra Monthly Payment</label>
             <span class="info-tip inline-block align-middle">
               <span class="info-icon-btn" onclick="toggleInfoTip('infoExtraMonthly', event)" title="More info"><i class="fa-solid fa-info"></i></span>
-              <span id="infoExtraMonthly" class="info-tip-bubble hidden">Applied to whichever debt is first in the order below. As each debt is paid off, its minimum rolls into the extra amount for the next one (classic snowball/avalanche behavior). This and the rollover math are sandbox-only for now — they shape the estimates on this tab but don't touch your Cash or Debt calendars yet. Lump sums (below) can be pushed onto your real calendars individually.</span>
+              <span id="infoExtraMonthly" class="info-tip-bubble hidden">This is your default extra payment — used for any month not covered by a period below. Applied to whichever debt is first in the order below; as each debt is paid off, its minimum rolls into the extra amount for the next one (classic snowball/avalanche behavior). This and the rollover math are sandbox-only for now — they shape the estimates on this tab but don't touch your Cash or Debt calendars yet. Lump sums (below) can be pushed onto your real calendars individually.</span>
             </span>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-gray-500 font-mono">$</span>
             <input id="payoffExtraMonthlyInput" type="number" min="0" step="10" value="0" onchange="updatePayoffExtraMonthly(this.value)" class="flex-1 bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs font-mono text-gray-800">
           </div>
+        </div>
+
+        <!-- Extra Payment Periods -->
+        <div class="p-3 rounded-xl bg-white border border-gray-300 shadow-sm space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Extra Payment Periods</label>
+              <span class="info-tip inline-block align-middle">
+                <span class="info-icon-btn" onclick="toggleInfoTip('infoExtraPeriods', event)" title="More info"><i class="fa-solid fa-info"></i></span>
+                <span id="infoExtraPeriods" class="info-tip-bubble hidden">Override your default Extra Monthly Payment for specific date ranges — e.g. pause it to $0 over Nov–Dec to cash flow the holidays, or bump it up starting whenever a raise kicks in. Leave End Date blank for "starts here, continues indefinitely." If ranges overlap, the period lower in the list wins for those months. Months not covered by any period fall back to the default above.</span>
+              </span>
+            </div>
+            <button onclick="addPayoffExtraPeriod()" class="text-[10px] font-semibold text-amber-700 hover:text-amber-900">+ Add Period</button>
+          </div>
+          <p id="payoffExtraPeriodsEmptyHint" class="hidden text-[10px] text-gray-400 italic">No periods yet — using your default extra monthly payment for every month.</p>
+          <div id="payoffExtraPeriodsList" class="space-y-2"></div>
+          <div id="payoffExtraTimeline" class="pt-1"></div>
         </div>
 
         <!-- Auto-suggested opportunities -->
@@ -1596,6 +1613,7 @@
       if (state.payoffExtraMonthly === undefined) state.payoffExtraMonthly = 0;
       if (!state.payoffMinOverrides) state.payoffMinOverrides = {};
       if (!state.payoffLumpSums) state.payoffLumpSums = [];
+      if (!state.payoffExtraPeriods) state.payoffExtraPeriods = [];
       if (!state.payoffCustomOrder) state.payoffCustomOrder = [];
       if (!state.payoffDismissedSuggestions) state.payoffDismissedSuggestions = [];
       if (state.payoffSuggestThreshold === undefined) state.payoffSuggestThreshold = 150;
@@ -4220,13 +4238,45 @@
       return freed;
     }
 
-    // Core simulator. `order` = debt ids in the priority order extra $ goes to.
-    // `minOverrides` = { debtId: amountString }. `lumpSums` = [{date, amount, debtId}].
-    function simulateDebtPayoff(order, extraMonthly, minOverrides, lumpSums) {
+    // Returns the current effective APR for a debt's working state on a given date
+    // (accounting for an active promo rate), used to rank avalanche order dynamically.
+    function currentEffectiveApr(w, curDate, monthNum) {
+      let apr = w.apr;
+      if (w.promoEnabled) {
+        if (w.promoEndDate && curDate <= w.promoEndDate) apr = w.promoApr;
+        else if (w.promoMonths > 0 && monthNum <= w.promoMonths) apr = w.promoApr;
+      }
+      return apr;
+    }
+
+    // Re-sorts the payoff order based on current (not original) balances/APRs.
+    // Avalanche and Snowball are recalculated every month as the simulation runs,
+    // so the "who's next" order reflects promo rates ending and balances shrinking
+    // rather than freezing the order based on day-one numbers. Custom order is
+    // left as the user arranged it.
+    function reorderForMonth(strategy, idsInOrder, work, curDate, monthNum) {
+      if (strategy !== 'avalanche' && strategy !== 'snowball') return idsInOrder;
+      return idsInOrder.slice().sort((a, b) => {
+        const wa = work[a], wb = work[b];
+        const aDone = wa.balance <= 0.005, bDone = wb.balance <= 0.005;
+        if (aDone && bDone) return 0;
+        if (aDone) return 1;
+        if (bDone) return -1;
+        if (strategy === 'avalanche') return currentEffectiveApr(wb, curDate, monthNum) - currentEffectiveApr(wa, curDate, monthNum);
+        return wa.balance - wb.balance; // snowball
+      });
+    }
+
+    // Core simulator. `order` = debt ids in the priority order extra $ goes to
+    // (starting order; avalanche/snowball re-derive this every month as balances
+    // and promo rates change — see reorderForMonth). `minOverrides` = { debtId:
+    // amountString }. `lumpSums` = [{date, amount, debtId}]. `extraPeriods` =
+    // [{startDate, endDate, amount}] date-ranged overrides of `extraMonthly`.
+    function simulateDebtPayoff(order, extraMonthly, minOverrides, lumpSums, extraPeriods, strategy) {
       const active = state.debts.filter(isDebtCurrentlyActive);
       if (active.length === 0) return { months: 0, totalInterest: 0, perDebt: {}, neverPaysOff: false };
 
-      const idsInOrder = order.filter(id => active.some(d => d.id === id));
+      let idsInOrder = order.filter(id => active.some(d => d.id === id));
       active.forEach(d => { if (!idsInOrder.includes(d.id)) idsInOrder.push(d.id); });
 
       const work = {};
@@ -4263,7 +4313,12 @@
         if (!anyActive) break;
         months++;
         curDate.setMonth(curDate.getMonth() + 1);
-        const monthKey = formatLocalDate(curDate).slice(0, 7);
+        const curDateStr = formatLocalDate(curDate);
+        const monthKey = curDateStr.slice(0, 7);
+
+        // Avalanche/Snowball: re-rank who's "next" based on this month's actual
+        // balances and promo status, rather than the order computed on day one.
+        idsInOrder = reorderForMonth(strategy, idsInOrder, work, curDate, months);
 
         // Interest + minimum payments
         idsInOrder.forEach(id => {
@@ -4291,8 +4346,10 @@
           rolledExtra += cascadePayoffAmount(work, thisOrder, parseFloat(ls.amount) || 0, months);
         });
 
-        // Extra monthly + anything freed up from paid-off debts so far
-        const pool = (extraMonthly || 0) + rolledExtra;
+        // Extra monthly (or whatever period override applies this month) + anything
+        // freed up from paid-off debts so far
+        const effectiveExtra = getEffectiveExtraMonthly(curDateStr, extraMonthly || 0, extraPeriods);
+        const pool = effectiveExtra + rolledExtra;
         rolledExtra += cascadePayoffAmount(work, idsInOrder, pool, months);
       }
 
@@ -4332,6 +4389,56 @@
       state.payoffExtraMonthly = Math.max(0, parseFloat(val) || 0);
       saveState();
       renderPayoffPlanner();
+    }
+
+    // Extra Payment Periods: date-ranged overrides of the default extra monthly
+    // payment, so pauses (Christmas) and bumps (a raise) can be modeled without
+    // manually re-entering the flat "Extra Monthly Payment" over and over.
+    function addPayoffExtraPeriod() {
+      if (!state.payoffExtraPeriods) state.payoffExtraPeriods = [];
+      const today = formatLocalDate(new Date());
+      state.payoffExtraPeriods.push({
+        id: 'period-' + Date.now(),
+        startDate: today,
+        endDate: '',
+        amount: state.payoffExtraMonthly || 0,
+        label: ''
+      });
+      saveState();
+      renderPayoffPlanner();
+    }
+
+    function updatePayoffExtraPeriod(id, field, val) {
+      const p = (state.payoffExtraPeriods || []).find(x => x.id === id);
+      if (!p) return;
+      if (field === 'amount') p.amount = Math.max(0, parseFloat(val) || 0);
+      else p[field] = val;
+      saveState();
+      renderPayoffPlanner();
+    }
+
+    function deletePayoffExtraPeriod(id) {
+      state.payoffExtraPeriods = (state.payoffExtraPeriods || []).filter(x => x.id !== id);
+      saveState();
+      renderPayoffPlanner();
+    }
+
+    // Resolves the extra-monthly dollar amount that applies to a given calendar
+    // month: the most recently-defined period covering that month, or the flat
+    // default if no period covers it.
+    function getEffectiveExtraMonthly(dateStr, baseAmount, periods) {
+      if (!periods || periods.length === 0) return baseAmount;
+      const monthKey = dateStr.slice(0, 7);
+      let match = null;
+      periods.forEach(p => {
+        if (!p.startDate) return;
+        const startKey = p.startDate.slice(0, 7);
+        const endKey = p.endDate ? p.endDate.slice(0, 7) : null;
+        if (monthKey < startKey) return;
+        if (endKey && monthKey > endKey) return;
+        match = p; // later entries in the array win on overlap
+      });
+      return match ? Math.max(0, parseFloat(match.amount) || 0) : baseAmount;
     }
 
     function updatePayoffMinOverride(debtId, val) {
@@ -4708,6 +4815,7 @@
       const extraMonthly = state.payoffExtraMonthly || 0;
       const minOverrides = state.payoffMinOverrides || {};
       const lumpSums = state.payoffLumpSums || [];
+      const extraPeriods = state.payoffExtraPeriods || [];
       document.getElementById('payoffExtraMonthlyInput').value = extraMonthly;
 
       // If most extra dollars are lump sums pinned to a specific debt (rather than
@@ -4729,7 +4837,7 @@
         }
       }
 
-      const result = simulateDebtPayoff(order, extraMonthly, minOverrides, lumpSums);
+      const result = simulateDebtPayoff(order, extraMonthly, minOverrides, lumpSums, extraPeriods, strategy);
       document.getElementById('payoffFreeDate').textContent = fmtPayoffDate(result.months);
       document.getElementById('payoffFreeSub').textContent = result.months === null
         ? 'Minimum payments alone won\'t cover interest on at least one debt — add extra or raise a minimum.'
@@ -4743,7 +4851,7 @@
       ];
       document.getElementById('payoffComparison').innerHTML = cmpDefs.map(c => {
         const o = getPayoffOrder(c.key);
-        const r = simulateDebtPayoff(o, extraMonthly, minOverrides, lumpSums);
+        const r = simulateDebtPayoff(o, extraMonthly, minOverrides, lumpSums, extraPeriods, c.key);
         const isActive = c.key === strategy;
         return `
           <button onclick="setPayoffStrategy('${c.key}')" class="p-2 rounded-lg border text-center ${isActive ? 'bg-amber-50 border-amber-400' : 'bg-white border-gray-300'}">
@@ -4773,6 +4881,61 @@
             <button onclick="dismissSuggestedLumpSum('${s.key}')" class="shrink-0 text-gray-400 hover:text-gray-700 text-[10px] px-1">Dismiss</button>
           </div>
         `).join('');
+      }
+
+      // Extra Payment Periods
+      const periodList = document.getElementById('payoffExtraPeriodsList');
+      const periodEmptyHint = document.getElementById('payoffExtraPeriodsEmptyHint');
+      if (extraPeriods.length === 0) {
+        periodList.innerHTML = '';
+        periodEmptyHint.classList.remove('hidden');
+      } else {
+        periodEmptyHint.classList.add('hidden');
+        periodList.innerHTML = extraPeriods.map(p => `
+          <div class="p-1.5 rounded-lg bg-gray-50 border border-gray-200 space-y-1.5">
+            <div class="grid grid-cols-12 gap-1.5 items-center">
+              <input type="date" value="${p.startDate || ''}" onchange="updatePayoffExtraPeriod('${p.id}','startDate',this.value)" title="Start date" class="col-span-5 bg-white border border-gray-300 rounded-lg p-1.5 text-[11px] text-gray-800">
+              <input type="date" value="${p.endDate || ''}" onchange="updatePayoffExtraPeriod('${p.id}','endDate',this.value)" title="End date (blank = ongoing)" placeholder="Ongoing" class="col-span-5 bg-white border border-gray-300 rounded-lg p-1.5 text-[11px] text-gray-800">
+              <button onclick="deletePayoffExtraPeriod('${p.id}')" title="Delete this period" class="col-span-2 text-gray-400 hover:text-red-600 text-center"><i class="fa-solid fa-trash text-[11px]"></i></button>
+            </div>
+            <div class="grid grid-cols-12 gap-1.5 items-center">
+              <div class="col-span-4 flex items-center bg-white border border-gray-300 rounded-lg px-1.5">
+                <span class="text-gray-500 text-[11px]">$</span>
+                <input type="number" min="0" step="10" value="${p.amount}" onchange="updatePayoffExtraPeriod('${p.id}','amount',this.value)" class="w-full bg-transparent p-1.5 text-[11px] text-gray-800">
+              </div>
+              <input type="text" value="${p.label || ''}" onchange="updatePayoffExtraPeriod('${p.id}','label',this.value)" placeholder="Label (e.g. Christmas pause, After raise)" class="col-span-8 bg-white border border-gray-300 rounded-lg p-1.5 text-[11px] text-gray-800">
+            </div>
+            <div class="text-[9px] text-gray-400 pl-0.5">${p.endDate ? `Applies ${p.startDate} through ${p.endDate}` : `Applies from ${p.startDate} onward, until you add another period`}</div>
+          </div>
+        `).join('');
+      }
+
+      // 12-month calendar preview of the effective extra payment, so pauses/bumps
+      // are visible at a glance instead of just trusting the math.
+      {
+        const timelineEl = document.getElementById('payoffExtraTimeline');
+        if (extraPeriods.length === 0) {
+          timelineEl.innerHTML = '';
+        } else {
+          const chips = [];
+          const d = new Date();
+          for (let i = 0; i < 12; i++) {
+            const label = d.toLocaleDateString('en-US', { month: 'short' });
+            const amt = getEffectiveExtraMonthly(formatLocalDate(d), extraMonthly, extraPeriods);
+            const isDefault = amt === extraMonthly;
+            chips.push(`
+              <div class="flex flex-col items-center shrink-0 w-12">
+                <div class="text-[8px] text-gray-400 font-bold uppercase">${label}</div>
+                <div class="text-[9px] font-mono font-bold mt-0.5 px-1 py-0.5 rounded ${isDefault ? 'text-gray-500' : (amt > extraMonthly ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700')}">${amt >= 1000 ? (amt/1000).toFixed(1)+'k' : amt}</div>
+              </div>
+            `);
+            d.setMonth(d.getMonth() + 1);
+          }
+          timelineEl.innerHTML = `
+            <div class="text-[9px] text-gray-400 uppercase font-bold mb-1">Next 12 Months</div>
+            <div class="flex gap-1 overflow-x-auto pb-1">${chips.join('')}</div>
+          `;
+        }
       }
 
       // Lump sums
@@ -4811,7 +4974,7 @@
       }
 
       // Order list
-      document.getElementById('payoffOrderHint').textContent = strategy === 'custom' ? 'Use ↑/↓ to reorder' : 'Order is automatic for this strategy';
+      document.getElementById('payoffOrderHint').textContent = strategy === 'custom' ? 'Use ↑/↓ to reorder' : 'Recalculated every month as balances change and promo rates end — order below reflects today only';
       document.getElementById('payoffOrderList').innerHTML = order.map((id, idx) => {
         const d = active.find(x => x.id === id);
         const payoffMonth = result.perDebt[id] ? result.perDebt[id].payoffMonth : null;
