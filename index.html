@@ -724,7 +724,7 @@
           <p class="text-[10px] text-gray-400 leading-relaxed">
             <strong>Not financial advice.</strong> This app is a personal budgeting and forecasting tool provided as-is, with no warranty of any kind. It does not constitute financial, legal, tax, or investment advice, and its creator is not a financial advisor. All calculations are estimates based on the numbers you enter and may contain errors — verify anything important against your actual account statements. You are solely responsible for your own financial decisions and outcomes.
           </p>
-          <p class="text-[10px] text-gray-400 text-center">Version 415.11.2</p>
+          <p class="text-[10px] text-gray-400 text-center">Version 415.11.3</p>
         </div>
       </div>
     </div>
@@ -2367,6 +2367,21 @@
             if (t.type === 'expense') curBal += t.amount;
             else if (t.type === 'income') curBal -= t.amount;
           });
+
+          // Recurring extra payments linked to this debt (from the "Apply to
+          // which debt?" option on a recurring transaction) — these weren't
+          // read at all before, which is why a recurring extra payment
+          // showed up on the Cash Calendar as an outflow but never actually
+          // reduced the debt's balance.
+          state.recurring.forEach(rule => {
+            if (rule.linkedDebtId !== debt.id) return;
+            if (!ruleFiresOnDate(rule, cur, k)) return;
+            curBal -= rule.amount;
+          });
+
+          // An extra or lump-sum payment that's bigger than what's left
+          // shouldn't be able to push the balance negative.
+          curBal = Math.max(0, curBal);
         }
 
         entry.map[k] = curBal;
@@ -2389,6 +2404,58 @@
       return getDebtBalanceAsOf(debt, formatLocalDate(dayBefore)) <= 0;
     }
 
+    // Whether a recurring rule fires on a given date — factored out of the
+    // Cash Calendar's matching loop so the Debt balance engine (below) can
+    // reuse the exact same weekday/interval logic for debt-linked recurring
+    // extra payments, instead of drifting out of sync with a second copy.
+    function ruleFiresOnDate(rule, targetDate, targetDateStr) {
+      if (rule.paused) return false;
+      const start = parseLocalDate(rule.startDate);
+      if (targetDate < start) return false;
+
+      const excKey = `${rule.id}_${targetDateStr}`;
+      if (state.exceptions[excKey] && state.exceptions[excKey].skipped) return false;
+
+      let hit = false;
+
+      if (rule.mode === 'weekday') {
+        if (targetDate.getDay() === parseInt(rule.dayOfWeek)) {
+          const dayNum = targetDate.getDate();
+          const nth = parseInt(rule.nth);
+          if (nth === -1) {
+            const nextWeek = new Date(targetDate);
+            nextWeek.setDate(nextWeek.getDate() + 7);
+            if (nextWeek.getMonth() !== targetDate.getMonth()) hit = true;
+          } else if (Math.ceil(dayNum / 7) === nth) {
+            hit = true;
+          }
+        }
+      } else {
+        const count = rule.count || 1;
+        const unit = rule.unit || 'month';
+
+        if (unit === 'day') {
+          const diffDays = Math.round((targetDate - start) / (1000 * 60 * 60 * 24));
+          if (diffDays >= 0 && diffDays % count === 0) hit = true;
+        } else if (unit === 'week') {
+          const diffDays = Math.round((targetDate - start) / (1000 * 60 * 60 * 24));
+          if (diffDays >= 0 && diffDays % (count * 7) === 0) hit = true;
+        } else if (unit === 'month') {
+          const monthsDiff = (targetDate.getFullYear() - start.getFullYear()) * 12 + (targetDate.getMonth() - start.getMonth());
+          if (monthsDiff >= 0 && monthsDiff % count === 0 && targetDate.getDate() === start.getDate()) hit = true;
+        } else if (unit === 'year') {
+          const yearsDiff = targetDate.getFullYear() - start.getFullYear();
+          if (yearsDiff >= 0 && yearsDiff % count === 0 && targetDate.getMonth() === start.getMonth() && targetDate.getDate() === start.getDate()) hit = true;
+        }
+      }
+
+      if (hit && rule.endType === 'until_date' && rule.endDate && targetDate > parseLocalDate(rule.endDate)) {
+        hit = false;
+      }
+
+      return hit;
+    }
+
     function getRecurringForDate(targetDateStr) {
       const targetDate = parseLocalDate(targetDateStr);
       const matches = [];
@@ -2397,53 +2464,8 @@
         state.recurring.forEach(rule => {
           if (rule.paused) return;
           if (!isAccountActive(rule.accountId)) return;
-
-          const start = parseLocalDate(rule.startDate);
-          if (targetDate < start) return;
-
-          const excKey = `${rule.id}_${targetDateStr}`;
-          if (state.exceptions[excKey] && state.exceptions[excKey].skipped) return;
-
-          let hit = false;
-
-          if (rule.mode === 'weekday') {
-            if (targetDate.getDay() === parseInt(rule.dayOfWeek)) {
-              const dayNum = targetDate.getDate();
-              const nth = parseInt(rule.nth);
-              if (nth === -1) {
-                const nextWeek = new Date(targetDate);
-                nextWeek.setDate(nextWeek.getDate() + 7);
-                if (nextWeek.getMonth() !== targetDate.getMonth()) hit = true;
-              } else if (Math.ceil(dayNum / 7) === nth) {
-                hit = true;
-              }
-            }
-          } else {
-            const count = rule.count || 1;
-            const unit = rule.unit || 'month';
-
-            if (unit === 'day') {
-              const diffDays = Math.round((targetDate - start) / (1000 * 60 * 60 * 24));
-              if (diffDays >= 0 && diffDays % count === 0) hit = true;
-            } else if (unit === 'week') {
-              const diffDays = Math.round((targetDate - start) / (1000 * 60 * 60 * 24));
-              if (diffDays >= 0 && diffDays % (count * 7) === 0) hit = true;
-            } else if (unit === 'month') {
-              const monthsDiff = (targetDate.getFullYear() - start.getFullYear()) * 12 + (targetDate.getMonth() - start.getMonth());
-              if (monthsDiff >= 0 && monthsDiff % count === 0 && targetDate.getDate() === start.getDate()) hit = true;
-            } else if (unit === 'year') {
-              const yearsDiff = targetDate.getFullYear() - start.getFullYear();
-              if (yearsDiff >= 0 && yearsDiff % count === 0 && targetDate.getMonth() === start.getMonth() && targetDate.getDate() === start.getDate()) hit = true;
-            }
-          }
-
-          if (hit && rule.endType === 'until_date' && rule.endDate && targetDate > parseLocalDate(rule.endDate)) {
-            hit = false;
-          }
-
-          if (hit) {
-            matches.push({ ...rule, isRecurring: true, date: targetDateStr, instanceId: `${rule.id}_${targetDateStr}` });
-          }
+          if (!ruleFiresOnDate(rule, targetDate, targetDateStr)) return;
+          matches.push({ ...rule, isRecurring: true, date: targetDateStr, instanceId: `${rule.id}_${targetDateStr}` });
         });
       }
 
@@ -2476,6 +2498,18 @@
                 if (calculatedInterest > 0) {
                   matches.push({ id: `debt-int-${d.id}`, desc: `Interest Charge (${d.name})`, amount: calculatedInterest, category: d.category || 'Debts', type: 'expense', isRecurring: true, date: targetDateStr, instanceId: `debt-int-${d.id}_${targetDateStr}` });
                 }
+              }
+
+              // Recurring extra payments linked to this debt from the
+              // Transactions modal ("Apply to which debt?") — surfaced here
+              // too so they're visible on the Debt Calendar, not just
+              // silently reducing the running balance.
+              if (!paidOff) {
+                state.recurring.forEach(rule => {
+                  if (rule.linkedDebtId !== d.id) return;
+                  if (!ruleFiresOnDate(rule, targetDate, targetDateStr)) return;
+                  matches.push({ id: `debt-extra-${rule.id}`, desc: `${rule.desc} (${d.name})`, amount: rule.amount, category: rule.category || 'Debts', type: 'income', isRecurring: true, date: targetDateStr, instanceId: `${rule.id}_${targetDateStr}` });
+                });
               }
             }
           }
@@ -2679,7 +2713,7 @@
 
       document.getElementById('txDebtAccount').innerHTML =
         `<option value="">Don't link — just log the expense</option>` +
-        state.debts.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+        state.debts.filter(isDebtCurrentlyActive).map(d => `<option value="${d.id}">${d.name}</option>`).join('');
 
       checkQuarterlyNegativeBalance();
       checkDebtFreeMilestone();
@@ -3562,6 +3596,13 @@
           startDate: data.date,
           endType: 'never',
           accountId: data.accountId,
+          // This is the fix: previously debtLinkId was only ever applied to
+          // one-time entries — a recurring entry ignored it completely, so
+          // it showed up as a Cash Calendar outflow but never touched the
+          // debt's balance. The rule still lives on the cash account (so it
+          // behaves like any other recurring expense there); linkedDebtId is
+          // what the debt balance engine and Debt Calendar look for.
+          linkedDebtId: debtLinkId || undefined,
           paused: false
         });
       } else {
@@ -3964,6 +4005,22 @@
       openModal('debtModal');
     }
 
+    // A debt counts as "active" for pickers (Payoff Planner, lump sums, the
+    // debt-link dropdown) only if it still has a balance AND hasn't been
+    // closed out by an end date. Without the end-date check, a debt that's
+    // been split into "old terms" + "new terms" records would show up
+    // twice everywhere forever, since the old record's balance field is
+    // its original starting balance, not a live one.
+    function isDebtCurrentlyActive(d) {
+      if (!(d.balance > 0)) return false;
+      if (d.endDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (parseLocalDate(d.endDate) < today) return false;
+      }
+      return true;
+    }
+
     // --- DEBT EDIT & SPLIT FROM DATE ACTION ---
     function saveDebt(e) {
       e.preventDefault();
@@ -3997,16 +4054,26 @@
         if (idx !== -1) {
           if (editScope === 'from_date') {
             // Snapshot the true balance as of the effective date using the OLD
-            // terms (so history up to this point stays accurate), then update
-            // this same debt record in place with the new terms going forward.
-            // No duplicate record is created — this fixes the account showing
-            // up twice everywhere (filters, lists, the Payoff Planner, etc).
+            // terms (so history up to this point stays accurate)...
             const balanceAtEffectiveDate = getDebtBalanceAsOf(state.debts[idx], effectiveDate);
-            state.debts[idx] = {
+            const dayBefore = parseLocalDate(effectiveDate);
+            dayBefore.setDate(dayBefore.getDate() - 1);
+            // ...close out the OLD record right there (its history — past
+            // transactions, past balances, past terms — stays exactly as it
+            // was, untouched)...
+            state.debts[idx] = { ...state.debts[idx], endDate: formatLocalDate(dayBefore) };
+            // ...and open a genuinely NEW record carrying the new terms
+            // forward. This used to overwrite the same record in place,
+            // which silently rewrote history before the split point — this
+            // is the actual fix for that. isDebtCurrentlyActive() (used
+            // everywhere debts are picked from a list) is what keeps this
+            // from showing the account twice.
+            state.debts.push({
               ...data,
+              id: 'd-' + Date.now(),
               startDate: effectiveDate,
               balance: Math.max(0, balanceAtEffectiveDate)
-            };
+            });
           } else {
             state.debts[idx] = data;
           }
@@ -4033,7 +4100,7 @@
     // ==================== DEBT PAYOFF PLANNER ====================
 
     function getPayoffOrder(strategy) {
-      const active = state.debts.filter(d => d.balance > 0);
+      const active = state.debts.filter(isDebtCurrentlyActive);
       if (strategy === 'avalanche') {
         return active.slice().sort((a, b) => b.apr - a.apr).map(d => d.id);
       }
@@ -4070,7 +4137,7 @@
     // Core simulator. `order` = debt ids in the priority order extra $ goes to.
     // `minOverrides` = { debtId: amountString }. `lumpSums` = [{date, amount, debtId}].
     function simulateDebtPayoff(order, extraMonthly, minOverrides, lumpSums) {
-      const active = state.debts.filter(d => d.balance > 0);
+      const active = state.debts.filter(isDebtCurrentlyActive);
       if (active.length === 0) return { months: 0, totalInterest: 0, perDebt: {}, neverPaysOff: false };
 
       const idsInOrder = order.filter(id => active.some(d => d.id === id));
@@ -4530,7 +4597,7 @@
     }
 
     function renderPayoffPlanner() {
-      const active = state.debts.filter(d => d.balance > 0);
+      const active = state.debts.filter(isDebtCurrentlyActive);
       const empty = document.getElementById('payoffEmptyState');
       const content = document.getElementById('payoffContent');
       if (active.length === 0) {
