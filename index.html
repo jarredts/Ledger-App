@@ -749,7 +749,7 @@
           <p class="text-[10px] text-gray-400 leading-relaxed">
             <strong>Not financial advice.</strong> This app is a personal budgeting and forecasting tool provided as-is, with no warranty of any kind. It does not constitute financial, legal, tax, or investment advice, and its creator is not a financial advisor. All calculations are estimates based on the numbers you enter and may contain errors — verify anything important against your actual account statements. You are solely responsible for your own financial decisions and outcomes.
           </p>
-          <p class="text-[10px] text-gray-400 text-center">Version 415.11.7</p>
+          <p class="text-[10px] text-gray-400 text-center">Version 415.11.8</p>
         </div>
       </div>
     </div>
@@ -983,13 +983,16 @@
         <input id="recId" type="hidden">
         <input id="recDesc" type="text" placeholder="Description (e.g. Paycheck, Mortgage)" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
         <input id="recAmount" type="number" step="0.01" placeholder="Amount ($)" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
-        <select id="recType" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
+        <select id="recType" onchange="updateRecTypeUI()" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
           <option value="expense">Expense (-)</option>
           <option value="income">Income (+)</option>
+          <option value="transfer">Transfer Between Accounts</option>
         </select>
-        <select id="recCategory" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
+        <div id="recCategoryWrap">
+          <select id="recCategory" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
+        </div>
 
-        <label class="flex items-center gap-2 cursor-pointer bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+        <label id="recAutopayWrap" class="flex items-center gap-2 cursor-pointer bg-emerald-50 border border-emerald-200 rounded-lg p-2">
           <input type="checkbox" id="recAutopay" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
           <span class="text-xs font-semibold text-gray-700">Autopay — mark each occurrence Paid automatically once its date passes</span>
         </label>
@@ -1039,7 +1042,15 @@
           <input id="recMaxOccurrences" type="number" placeholder="Number of occurrences (e.g. 36)" class="hidden w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
         </div>
 
-        <select id="recAccount" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
+        <div>
+          <label id="recAccountLabel" class="text-[10px] text-gray-500 block mb-1 hidden">FROM ACCOUNT</label>
+          <select id="recAccount" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
+        </div>
+        <div id="recToAccountWrap" class="hidden">
+          <label class="text-[10px] text-gray-500 block mb-1">TO ACCOUNT</label>
+          <select id="recToAccount" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
+          <p class="text-[9px] text-gray-400 mt-0.5">Runs on this schedule as a linked pair — doesn't count as income or spending in Budgets.</p>
+        </div>
         <button type="submit" class="w-full bg-amber-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-amber-600">Save Recurring Rule</button>
       </form>
     </div>
@@ -2602,8 +2613,24 @@
       if (activeForecastMode === 'liquid') {
         state.recurring.forEach(rule => {
           if (rule.paused) return;
-          if (!isAccountActive(rule.accountId)) return;
           if (!ruleFiresOnDate(rule, targetDate, targetDateStr)) return;
+
+          if (rule.type === 'transfer' || rule.isTransfer) {
+            // Each leg is filtered independently by the account filter, same
+            // as a one-time transfer pair: viewing "all combined" nets to
+            // zero, viewing just the From or To account shows only that
+            // account's real half of the movement.
+            const pairInstanceId = `${rule.id}_${targetDateStr}`;
+            if (isAccountActive(rule.accountId)) {
+              matches.push({ id: rule.id, desc: rule.desc, amount: rule.amount, category: 'Transfer', type: 'expense', accountId: rule.accountId, isRecurring: true, isTransfer: true, date: targetDateStr, instanceId: `${pairInstanceId}_from` });
+            }
+            if (isAccountActive(rule.toAccountId)) {
+              matches.push({ id: rule.id, desc: rule.desc, amount: rule.amount, category: 'Transfer', type: 'income', accountId: rule.toAccountId, isRecurring: true, isTransfer: true, date: targetDateStr, instanceId: `${pairInstanceId}_to` });
+            }
+            return;
+          }
+
+          if (!isAccountActive(rule.accountId)) return;
           matches.push({ ...rule, isRecurring: true, date: targetDateStr, instanceId: `${rule.id}_${targetDateStr}` });
         });
       }
@@ -2847,6 +2874,7 @@
       txSelect.innerHTML = accOptions;
       recSelect.innerHTML = accOptions;
       txToSelect.innerHTML = state.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+      document.getElementById('recToAccount').innerHTML = state.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
 
       const catOptions = state.categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
       document.getElementById('txCategory').innerHTML = catOptions;
@@ -3305,14 +3333,16 @@
         ? `<div class="text-xs text-gray-500 italic p-4 text-center">No matching recurring rules found.</div>`
         : filtered.map(r => {
             const accName = getAccountName(r.accountId);
+            const toAccName = r.isTransfer ? getAccountName(r.toAccountId) : null;
             return `
               <div class="flex justify-between items-center p-3 rounded-xl bg-white border border-gray-300 text-xs shadow-sm ${r.paused ? 'opacity-60 bg-gray-50' : ''}">
                 <div>
                   <div class="font-bold text-gray-900 flex items-center gap-1.5 flex-wrap">
                     ${r.desc}
                     <span class="text-[9px] bg-gray-100 text-gray-600 border border-gray-200 px-1.5 py-0.5 rounded-full font-medium">
-                      <i class="fa-solid fa-wallet text-[8px] mr-0.5"></i> ${accName}
+                      <i class="fa-solid fa-wallet text-[8px] mr-0.5"></i> ${accName}${r.isTransfer ? ` <i class="fa-solid fa-arrow-right text-[8px] mx-0.5"></i> ${toAccName}` : ''}
                     </span>
+                    ${r.isTransfer ? '<span class="text-[9px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-bold"><i class="fa-solid fa-right-left"></i> TRANSFER</span>' : ''}
                     ${r.paused ? '<span class="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">PAUSED</span>' : ''}
                     ${r.autopay ? '<span class="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">AUTOPAY</span>' : ''}
                   </div>
@@ -3322,7 +3352,7 @@
                   </div>
                 </div>
                 <div class="flex items-center gap-2.5">
-                  <span class="font-mono font-bold ${r.type === 'income' ? 'text-emerald-700' : 'text-red-600'}">${r.type === 'income' ? '+' : '-'}${fmtMoney(r.amount)}</span>
+                  <span class="font-mono font-bold ${r.isTransfer ? 'text-blue-700' : (r.type === 'income' ? 'text-emerald-700' : 'text-red-600')}">${r.isTransfer ? '' : (r.type === 'income' ? '+' : '-')}${fmtMoney(r.amount)}</span>
                   <button onclick="togglePauseRecurring('${r.id}')" title="${r.paused ? 'Resume' : 'Pause'}" class="text-gray-400 hover:text-amber-600 text-xs p-1"><i class="fa-solid ${r.paused ? 'fa-play text-emerald-600' : 'fa-pause'}"></i></button>
                   <button onclick="openRecurringModal('${r.id}')" title="Edit Rule" class="text-gray-400 hover:text-amber-600 text-xs p-1"><i class="fa-solid fa-pen"></i></button>
                   <button onclick="deleteRecurring('${r.id}')" title="Delete Rule" class="text-gray-400 hover:text-red-600 text-xs p-1"><i class="fa-solid fa-trash"></i></button>
@@ -3488,6 +3518,7 @@
           const k = formatLocalDate(cur);
           const isActual = k <= todayStr;
           getRecurringForDate(k).forEach(r => {
+            if (r.isTransfer) return;
             if (r.type === 'income') { if (isActual) incomeActual += r.amount; else incomePlanned += r.amount; }
             else if (r.type === 'expense') { if (isActual) expenseActual += r.amount; else expensePlanned += r.amount; }
           });
@@ -3520,7 +3551,7 @@
         while (curC <= endC) {
           const k = formatLocalDate(curC);
           getRecurringForDate(k).forEach(r => {
-            if (r.type !== 'expense') return;
+            if (r.isTransfer || r.type !== 'expense') return;
             const rCat = r.category || 'Unassigned';
             if (expenseBudgetCats.has(rCat) || (!r.category && expenseBudgetCats.has('General'))) categorizedExpense += r.amount;
           });
@@ -3767,6 +3798,15 @@
     // payment (a Debt-ish category, an Expense, paid from a real cash
     // account rather than a debt account directly). Resets the selection
     // whenever it's hidden so a stale pick can't sneak through.
+    function updateRecTypeUI() {
+      const isTransfer = document.getElementById('recType').value === 'transfer';
+      document.getElementById('recCategoryWrap').classList.toggle('hidden', isTransfer);
+      document.getElementById('recAutopayWrap').classList.toggle('hidden', isTransfer);
+      document.getElementById('recToAccountWrap').classList.toggle('hidden', !isTransfer);
+      document.getElementById('recAccountLabel').classList.toggle('hidden', !isTransfer);
+      if (isTransfer) document.getElementById('recAutopay').checked = false;
+    }
+
     function updateTxDebtLinkVisibility() {
       const cat = document.getElementById('txCategory').value || '';
       const type = document.getElementById('txType').value;
@@ -4117,6 +4157,7 @@
         document.getElementById('recEndDate').value = r.endDate || '';
         document.getElementById('recMaxOccurrences').value = r.maxOccurrences || '';
         document.getElementById('recAccount').value = r.accountId;
+        document.getElementById('recToAccount').value = r.toAccountId || '';
         document.getElementById('recAutopay').checked = !!r.autopay;
         document.getElementById('recModalTitle').textContent = 'Edit Recurring Rule';
       } else {
@@ -4132,9 +4173,12 @@
         document.getElementById('recMaxOccurrences').value = '';
         document.getElementById('recAutopay').checked = false;
         document.getElementById('recModalTitle').textContent = 'Add Recurring Rule';
+        document.getElementById('recType').value = 'expense';
+        document.getElementById('recToAccount').value = '';
       }
       toggleRecModeUI();
       toggleRecEndUI();
+      updateRecTypeUI();
       openModal('recurringModal');
     }
 
@@ -4153,12 +4197,27 @@
     function saveRecurring(e) {
       e.preventDefault();
       const id = document.getElementById('recId').value;
+      const type = document.getElementById('recType').value;
+
+      if (type === 'transfer') {
+        const fromAccountId = document.getElementById('recAccount').value;
+        const toAccountId = document.getElementById('recToAccount').value;
+        if (!fromAccountId || !toAccountId || fromAccountId === toAccountId) {
+          alert('Pick two different accounts to transfer between.');
+          return;
+        }
+        if (fromAccountId.startsWith('debt-') || toAccountId.startsWith('debt-')) {
+          alert('Transfers are between cash accounts only.');
+          return;
+        }
+      }
+
       const data = {
         id: id || 'rec-' + Date.now(),
         desc: document.getElementById('recDesc').value,
         amount: parseFloat(document.getElementById('recAmount').value) || 0,
-        type: document.getElementById('recType').value,
-        category: document.getElementById('recCategory').value,
+        type,
+        category: type === 'transfer' ? 'Transfer' : document.getElementById('recCategory').value,
         mode: document.getElementById('recMode').value,
         count: parseInt(document.getElementById('recCount').value) || 1,
         unit: document.getElementById('recUnit').value,
@@ -4169,7 +4228,9 @@
         endDate: document.getElementById('recEndDate').value,
         maxOccurrences: parseInt(document.getElementById('recMaxOccurrences').value) || null,
         accountId: document.getElementById('recAccount').value,
-        autopay: document.getElementById('recAutopay').checked,
+        toAccountId: type === 'transfer' ? document.getElementById('recToAccount').value : undefined,
+        isTransfer: type === 'transfer',
+        autopay: type === 'transfer' ? false : document.getElementById('recAutopay').checked,
         paused: false
       };
 
