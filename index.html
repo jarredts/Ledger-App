@@ -276,7 +276,10 @@
               <i class="fa-solid fa-calendar-day text-[10px]"></i> Today
             </button>
           </div>
-          <div id="currentMonthLabel" class="font-bold text-gray-900 text-sm"></div>
+          <button onclick="openMonthReport()" title="See all transactions this month" class="flex flex-col items-center group">
+            <div id="currentMonthLabel" class="font-bold text-gray-900 text-sm group-hover:text-amber-600 transition-colors"></div>
+            <div class="text-[9px] text-amber-600 font-semibold opacity-80 group-hover:opacity-100"><i class="fa-solid fa-magnifying-glass"></i> Tap for month report</div>
+          </button>
           <div class="flex items-center gap-1.5">
             <button onclick="jumpToSpecificDate()" title="Jump to a Specific Date" class="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs shadow-sm transition-colors">
               <i class="fa-solid fa-calendar-days"></i>
@@ -746,7 +749,7 @@
           <p class="text-[10px] text-gray-400 leading-relaxed">
             <strong>Not financial advice.</strong> This app is a personal budgeting and forecasting tool provided as-is, with no warranty of any kind. It does not constitute financial, legal, tax, or investment advice, and its creator is not a financial advisor. All calculations are estimates based on the numbers you enter and may contain errors — verify anything important against your actual account statements. You are solely responsible for your own financial decisions and outcomes.
           </p>
-          <p class="text-[10px] text-gray-400 text-center">Version 415.11.6</p>
+          <p class="text-[10px] text-gray-400 text-center">Version 415.11.7</p>
         </div>
       </div>
     </div>
@@ -920,12 +923,23 @@
         <input id="txId" type="hidden">
         <input id="txDesc" type="text" placeholder="Description" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
         <input id="txAmount" type="number" step="0.01" placeholder="Amount ($)" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
-        <select id="txCategory" onchange="updateTxDebtLinkVisibility()" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
-        <select id="txType" onchange="updateTxDebtLinkVisibility()" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
+        <select id="txType" onchange="updateTxTypeUI()" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
           <option value="expense">Expense (-)</option>
           <option value="income">Income (+)</option>
+          <option value="transfer">Transfer Between Accounts</option>
         </select>
-        <select id="txAccount" onchange="updateTxDebtLinkVisibility()" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
+        <div id="txCategoryWrap">
+          <select id="txCategory" onchange="updateTxDebtLinkVisibility()" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
+        </div>
+        <div>
+          <label id="txAccountLabel" class="block text-[10px] text-gray-500 mb-0.5 hidden">FROM ACCOUNT</label>
+          <select id="txAccount" onchange="updateTxDebtLinkVisibility()" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
+        </div>
+        <div id="txToAccountWrap" class="hidden">
+          <label class="block text-[10px] text-gray-500 mb-0.5">TO ACCOUNT</label>
+          <select id="txToAccount" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
+          <p class="text-[9px] text-gray-400 mt-0.5">Moves money between your own cash accounts — logged as one linked entry on each account, doesn't count as income or spending in Budgets. Recurring transfers aren't supported yet; log each one manually.</p>
+        </div>
         <input id="txDate" type="date" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
 
         <div id="txDebtLinkWrap" class="hidden p-2.5 rounded-lg bg-blue-50 border border-blue-200 space-y-1">
@@ -934,7 +948,7 @@
           <p class="text-[9px] text-blue-700">Pick one and we'll also log the matching payment on that debt's balance — linked to this entry, so editing or deleting either side keeps both in sync.</p>
         </div>
         
-        <div class="pt-2 border-t border-gray-200 space-y-2">
+        <div id="txRecurringToggleWrap" class="pt-2 border-t border-gray-200 space-y-2">
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" id="txIsRecurring" onchange="toggleTxRecurringOptions()" class="w-4 h-4 rounded text-amber-500 focus:ring-amber-500">
             <span class="text-xs font-semibold text-gray-700">Option to make this recurring</span>
@@ -1219,6 +1233,19 @@
       </div>
       <p id="budgetDrilldownSubtitle" class="text-[11px] text-gray-500"></p>
       <div id="budgetDrilldownList" class="space-y-1.5 text-xs"></div>
+    </div>
+  </div>
+
+  <!-- Month Report Modal (Forecast Calendar month header) -->
+  <div id="monthReportModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-3 max-h-[85vh] overflow-y-auto shadow-xl">
+      <div class="flex justify-between items-center">
+        <h3 id="monthReportTitle" class="font-bold text-base text-gray-900">Month Report</h3>
+        <button onclick="closeModal('monthReportModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+      </div>
+      <p id="monthReportSubtitle" class="text-[11px] text-gray-500"></p>
+      <div id="monthReportSummary" class="grid grid-cols-3 gap-2"></div>
+      <div id="monthReportList" class="space-y-3 text-xs"></div>
     </div>
   </div>
 
@@ -1629,6 +1656,9 @@
       }
       if (!state.categories.find(c => c.name.toLowerCase() === 'debts')) {
         state.categories.push({ id: 'cat-debts', name: 'Debts', color: '#B91C1C', icon: 'fa-credit-card' });
+      }
+      if (!state.categories.find(c => c.name.toLowerCase() === 'transfer')) {
+        state.categories.push({ id: 'cat-transfer', name: 'Transfer', color: '#64748B', icon: 'fa-right-left' });
       }
       if (state.debts) {
         state.debts.forEach(d => {
@@ -2808,6 +2838,7 @@
 
       const txSelect = document.getElementById('txAccount');
       const recSelect = document.getElementById('recAccount');
+      const txToSelect = document.getElementById('txToAccount');
 
       let accOptions = state.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
       if (state.debts.length > 0) {
@@ -2815,6 +2846,7 @@
       }
       txSelect.innerHTML = accOptions;
       recSelect.innerHTML = accOptions;
+      txToSelect.innerHTML = state.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
 
       const catOptions = state.categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
       document.getElementById('txCategory').innerHTML = catOptions;
@@ -3157,6 +3189,7 @@
                   <div>
                     <span class="${t.type === 'income' ? 'text-emerald-700' : 'text-red-600'} font-mono font-bold ${isPaid ? 'line-through' : ''}">${t.type === 'income' ? '+' : '-'}${fmtMoney(t.amount)} · ${t.desc}</span>
                     ${t.isRecurring ? `<span class="ml-1 text-[9px] text-amber-700 font-mono font-bold uppercase">(Recurring)</span>` : ''}
+                    ${t.isTransfer ? `<span class="ml-1 text-[9px] text-blue-700 font-mono font-bold uppercase"><i class="fa-solid fa-right-left"></i> Transfer</span>` : ''}
                     ${isPaid ? `<span class="ml-1 text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold uppercase">PAID</span>` : ''}
                   </div>
                 </div>
@@ -3226,8 +3259,8 @@
               <div class="flex items-center gap-2">
                 <input type="checkbox" ${isPaid ? 'checked' : ''} onchange="togglePaid('${t.id}')" title="Mark as Paid/Cleared" class="w-3.5 h-3.5 text-emerald-600 rounded cursor-pointer flex-shrink-0">
                 <div>
-                  <div class="font-bold text-gray-900 ${isPaid ? 'line-through' : ''}">${t.desc} ${isPaid ? `<span class="ml-1 text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold uppercase">PAID</span>` : ''}</div>
-                  <div class="text-[10px] text-gray-500 font-mono">${t.date} · ${t.category || 'General'}</div>
+                  <div class="font-bold text-gray-900 ${isPaid ? 'line-through' : ''}">${t.desc} ${isPaid ? `<span class="ml-1 text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold uppercase">PAID</span>` : ''} ${t.isTransfer ? `<span class="ml-1 text-[9px] bg-blue-100 text-blue-800 px-1 py-0.5 rounded font-bold uppercase"><i class="fa-solid fa-right-left"></i> Transfer</span>` : ''}</div>
+                  <div class="text-[10px] text-gray-500 font-mono">${t.date} · ${t.category || 'General'} · ${getAccountName(t.accountId)}</div>
                 </div>
               </div>
               <div class="flex items-center gap-3">
@@ -3442,6 +3475,7 @@
         let incomeActual = 0, incomePlanned = 0, expenseActual = 0, expensePlanned = 0;
 
         state.transactions.forEach(t => {
+          if (t.isTransfer) return;
           if (t.date < startDateStr || t.date > endDateStr) return;
           const isActual = t.date <= todayStr;
           if (t.type === 'income') { if (isActual) incomeActual += t.amount; else incomePlanned += t.amount; }
@@ -3477,7 +3511,7 @@
         const expenseBudgetCats = new Set(state.budgets.filter(b => (b.type || 'expense') === 'expense').map(b => b.category));
         let categorizedExpense = 0;
         state.transactions.forEach(t => {
-          if (t.date < startDateStr || t.date > endDateStr || t.type !== 'expense') return;
+          if (t.isTransfer || t.date < startDateStr || t.date > endDateStr || t.type !== 'expense') return;
           const tCat = t.category || 'Unassigned';
           if (expenseBudgetCats.has(tCat)) categorizedExpense += t.amount;
         });
@@ -3611,6 +3645,105 @@
       }).join('');
     }
 
+    // "Tap for month report" — this is deliberately built from the exact same
+    // isAccountActive-filtered data the calendar itself uses (state.transactions
+    // for that account/day + getRecurringForDate), so the report always matches
+    // whatever the Cash/Debt Calendar and current account filter are showing —
+    // no separate parallel calculation to drift out of sync.
+    function openMonthReport() {
+      const year = currentMonthDate.getFullYear();
+      const month = currentMonthDate.getMonth();
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const todayStr = formatLocalDate(new Date());
+      const monthLabel = currentMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      const selectedArr = activeForecastMode === 'liquid' ? selectedLiquidAccountIds : selectedDebtAccountIds;
+      const filterLabel = selectedArr.includes('all')
+        ? (activeForecastMode === 'liquid' ? 'All Cash Accounts Combined' : 'All Debts Combined')
+        : (selectedArr.length === 1 ? getAccountName(selectedArr[0]) : `${selectedArr.length} Accounts Selected`);
+
+      const days = [];
+      let incomeActual = 0, incomePlanned = 0, expenseActual = 0, expensePlanned = 0;
+      let itemCount = 0;
+
+      for (let day = 1; day <= lastDay; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const oneTimes = state.transactions.filter(t => t.date === dateStr && isAccountActive(t.accountId));
+        const recTxs = getRecurringForDate(dateStr);
+        const items = [...oneTimes, ...recTxs];
+        if (items.length === 0) continue;
+
+        const isActual = dateStr <= todayStr;
+        items.forEach(t => {
+          itemCount++;
+          if (t.isTransfer) return; // real movement for this account, but not income/spending
+          if (t.type === 'income') { if (isActual) incomeActual += t.amount; else incomePlanned += t.amount; }
+          else if (t.type === 'expense') { if (isActual) expenseActual += t.amount; else expensePlanned += t.amount; }
+        });
+
+        const dayIncome = items.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+        const dayExpense = items.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+
+        days.push({ dateStr, day, isActual, dayIncome, dayExpense, items });
+      }
+
+      const totalIncome = incomeActual + incomePlanned;
+      const totalExpense = expenseActual + expensePlanned;
+      const net = totalIncome - totalExpense;
+
+      document.getElementById('monthReportTitle').textContent = `${monthLabel} — ${activeForecastMode === 'liquid' ? 'Cash' : 'Debt'} Calendar Report`;
+      document.getElementById('monthReportSubtitle').textContent = `${filterLabel} \u00b7 ${itemCount} item${itemCount === 1 ? '' : 's'} across ${days.length} day${days.length === 1 ? '' : 's'} with activity`;
+
+      document.getElementById('monthReportSummary').innerHTML = `
+        <div class="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-center">
+          <div class="text-[9px] font-bold text-emerald-700 uppercase">Income</div>
+          <div class="text-[11px] font-mono font-bold text-emerald-800">${fmtMoney(totalIncome)}</div>
+          ${incomePlanned > 0 ? `<div class="text-[8px] text-emerald-600">${fmtMoney(incomeActual)} actual</div>` : ''}
+        </div>
+        <div class="p-2 rounded-lg bg-red-50 border border-red-200 text-center">
+          <div class="text-[9px] font-bold text-red-700 uppercase">Expenses</div>
+          <div class="text-[11px] font-mono font-bold text-red-800">${fmtMoney(totalExpense)}</div>
+          ${expensePlanned > 0 ? `<div class="text-[8px] text-red-600">${fmtMoney(expenseActual)} actual</div>` : ''}
+        </div>
+        <div class="p-2 rounded-lg ${net >= 0 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'} border text-center">
+          <div class="text-[9px] font-bold ${net >= 0 ? 'text-amber-700' : 'text-red-700'} uppercase">Net</div>
+          <div class="text-[11px] font-mono font-bold ${net >= 0 ? 'text-amber-800' : 'text-red-800'}">${net >= 0 ? '+' : ''}${fmtMoney(net)}</div>
+        </div>
+      `;
+
+      const list = document.getElementById('monthReportList');
+      list.innerHTML = days.length === 0
+        ? `<div class="text-gray-500 italic p-3 text-center">No transactions or recurring activity for ${filterLabel} this month.</div>`
+        : days.map(d => {
+            const dayDate = parseLocalDate(d.dateStr);
+            const dayLabel = dayDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            const dayNet = d.dayIncome - d.dayExpense;
+            return `
+              <div>
+                <button onclick="jumpToMonthReportDay('${d.dateStr}')" class="w-full flex justify-between items-center px-1 py-1 border-b border-gray-200 hover:bg-gray-50 rounded">
+                  <span class="font-bold text-gray-700">${dayLabel}${!d.isActual ? ' <span class=\'text-[8px] text-gray-400 font-normal\'>(planned)</span>' : ''}</span>
+                  <span class="font-mono font-bold ${dayNet > 0 ? 'text-emerald-700' : dayNet < 0 ? 'text-red-600' : 'text-gray-500'}">${dayNet > 0 ? '+' : ''}${fmtMoney(dayNet)}</span>
+                </button>
+                <div class="pl-1 pt-1 space-y-1">
+                  ${d.items.map(t => `
+                    <div class="flex justify-between items-center gap-2">
+                      <span class="min-w-0 truncate text-gray-600">${t.desc}${t.isTransfer ? ' <span class="text-[8px] text-blue-700 font-bold uppercase">(Transfer)</span>' : ''}${t.isRecurring ? ' <span class="text-[8px] text-amber-700 font-bold uppercase">(Rec)</span>' : ''}</span>
+                      <span class="font-mono shrink-0 ${t.type === 'income' ? 'text-emerald-700' : 'text-red-600'}">${t.type === 'income' ? '+' : '-'}${fmtMoney(t.amount)}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `;
+          }).join('');
+
+      openModal('monthReportModal');
+    }
+
+    function jumpToMonthReportDay(dateStr) {
+      closeModal('monthReportModal');
+      selectDate(dateStr);
+    }
+
     function saveBalanceOverride(e) {
       e.preventDefault();
       const val = parseFloat(document.getElementById('overrideAmount').value);
@@ -3639,9 +3772,31 @@
       const type = document.getElementById('txType').value;
       const acct = document.getElementById('txAccount').value || '';
       const wrap = document.getElementById('txDebtLinkWrap');
-      const show = /debt/i.test(cat) && type === 'expense' && acct && !acct.startsWith('debt-');
+      const show = type === 'expense' && /debt/i.test(cat) && acct && !acct.startsWith('debt-');
       wrap.classList.toggle('hidden', !show);
       if (!show) document.getElementById('txDebtAccount').value = '';
+    }
+
+    // Toggles the form between Expense/Income (category + single account +
+    // optional recurring + optional debt-link) and Transfer (fixed "Transfer"
+    // category, From/To cash accounts, no recurring or debt-link yet).
+    function updateTxTypeUI() {
+      const type = document.getElementById('txType').value;
+      const isTransfer = type === 'transfer';
+
+      document.getElementById('txCategoryWrap').classList.toggle('hidden', isTransfer);
+      document.getElementById('txToAccountWrap').classList.toggle('hidden', !isTransfer);
+      document.getElementById('txAccountLabel').classList.toggle('hidden', !isTransfer);
+      document.getElementById('txRecurringToggleWrap').classList.toggle('hidden', isTransfer);
+
+      if (isTransfer) {
+        document.getElementById('txIsRecurring').checked = false;
+        toggleTxRecurringOptions();
+        document.getElementById('txDebtLinkWrap').classList.add('hidden');
+        document.getElementById('txDebtAccount').value = '';
+      } else {
+        updateTxDebtLinkVisibility();
+      }
     }
 
     function openTransactionModal(id = null) {
@@ -3655,16 +3810,33 @@
         document.getElementById('txDesc').value = t.desc;
         document.getElementById('txAmount').value = t.amount;
         document.getElementById('txCategory').value = t.category || 'Unassigned';
-        document.getElementById('txType').value = t.type;
-        document.getElementById('txAccount').value = t.accountId;
         document.getElementById('txDate').value = t.date;
         document.getElementById('txModalTitle').textContent = 'Edit Transaction';
 
         document.getElementById('txDebtAccount').value = '';
-        if (t.linkedPairId && !(t.accountId || '').startsWith('debt-')) {
+
+        if (t.isTransfer && t.linkedPairId) {
+          // Whichever leg was clicked, always edit it as "From = this
+          // transaction's own account, To = the other leg's account" so a
+          // transfer always looks the same regardless of which side you
+          // opened it from.
           const sibling = state.transactions.find(x => x.linkedPairId === t.linkedPairId && x.id !== t.id);
-          if (sibling && (sibling.accountId || '').startsWith('debt-')) {
-            document.getElementById('txDebtAccount').value = sibling.accountId.replace('debt-', '');
+          document.getElementById('txType').value = 'transfer';
+          if (t.type === 'expense') {
+            document.getElementById('txAccount').value = t.accountId;
+            document.getElementById('txToAccount').value = sibling ? sibling.accountId : '';
+          } else {
+            document.getElementById('txAccount').value = sibling ? sibling.accountId : '';
+            document.getElementById('txToAccount').value = t.accountId;
+          }
+        } else {
+          document.getElementById('txType').value = t.type;
+          document.getElementById('txAccount').value = t.accountId;
+          if (t.linkedPairId && !(t.accountId || '').startsWith('debt-')) {
+            const sibling = state.transactions.find(x => x.linkedPairId === t.linkedPairId && x.id !== t.id);
+            if (sibling && (sibling.accountId || '').startsWith('debt-')) {
+              document.getElementById('txDebtAccount').value = sibling.accountId.replace('debt-', '');
+            }
           }
         }
       } else {
@@ -3676,13 +3848,75 @@
         document.getElementById('txModalTitle').textContent = 'Add Transaction Entry';
         document.getElementById('txDebtAccount').value = '';
       }
-      updateTxDebtLinkVisibility();
+      updateTxTypeUI();
       openModal('transactionModal');
     }
 
     function saveTransaction(e) {
       e.preventDefault();
       const id = document.getElementById('txId').value;
+      const type = document.getElementById('txType').value;
+      const old = id ? state.transactions.find(x => x.id === id) : null;
+
+      // --- Transfer between two cash accounts: always stored as a linked
+      // expense/income pair under the hood (same mechanism as a debt-payment
+      // pair), tagged isTransfer so budgets/category totals can exclude it
+      // and the edit modal knows to show From/To instead of one account.
+      if (type === 'transfer') {
+        const fromAccountId = document.getElementById('txAccount').value;
+        const toAccountId = document.getElementById('txToAccount').value;
+        const amount = parseFloat(document.getElementById('txAmount').value) || 0;
+        const desc = document.getElementById('txDesc').value;
+        const date = document.getElementById('txDate').value;
+
+        if (!fromAccountId || !toAccountId || fromAccountId === toAccountId) {
+          alert('Pick two different accounts to transfer between.');
+          return;
+        }
+        if (fromAccountId.startsWith('debt-') || toAccountId.startsWith('debt-')) {
+          alert('Transfers are between cash accounts only — use "Log Payment" on the Debts tab to pay down a debt.');
+          return;
+        }
+
+        if (old && old.isTransfer && old.linkedPairId) {
+          const sibling = state.transactions.find(x => x.linkedPairId === old.linkedPairId && x.id !== id);
+          const expenseLeg = old.type === 'expense' ? old : sibling;
+          const incomeLeg = old.type === 'income' ? old : sibling;
+          if (expenseLeg) { expenseLeg.desc = desc; expenseLeg.amount = amount; expenseLeg.date = date; expenseLeg.accountId = fromAccountId; }
+          if (incomeLeg) { incomeLeg.desc = desc; incomeLeg.amount = amount; incomeLeg.date = date; incomeLeg.accountId = toAccountId; }
+        } else {
+          // Brand new transfer, or a previously plain/debt-linked entry being
+          // turned into one — clear out whatever it used to be first.
+          if (old && old.linkedPairId) {
+            state.transactions = state.transactions.filter(x => x.linkedPairId !== old.linkedPairId);
+          } else if (old) {
+            state.transactions = state.transactions.filter(x => x.id !== old.id);
+          }
+          const pairId = 'pair-' + Date.now();
+          state.transactions.push({
+            id: id || ('tx-' + Date.now()),
+            desc, amount, type: 'expense', category: 'Transfer',
+            accountId: fromAccountId, date, isTransfer: true, linkedPairId: pairId, isPaid: true
+          });
+          state.transactions.push({
+            id: 'tx-' + Date.now() + '-to',
+            desc, amount, type: 'income', category: 'Transfer',
+            accountId: toAccountId, date, isTransfer: true, linkedPairId: pairId, isPaid: true
+          });
+        }
+
+        closeModal('transactionModal');
+        saveState();
+        renderPayoffPlanner();
+        return;
+      }
+
+      // Converting a transfer leg back into a plain Expense/Income: drop the
+      // other leg and the transfer tagging, then fall through to normal save.
+      if (old && old.isTransfer && old.linkedPairId) {
+        state.transactions = state.transactions.filter(x => x.linkedPairId !== old.linkedPairId);
+      }
+
       const debtLinkId = document.getElementById('txDebtAccount').value;
       const data = {
         id: id || 'tx-' + Date.now(),
@@ -3720,21 +3954,21 @@
           paused: false
         });
       } else {
-        const old = id ? state.transactions.find(x => x.id === id) : null;
+        const old2 = (old && !old.isTransfer) ? old : (id ? state.transactions.find(x => x.id === id) : null);
 
-        if (old && old.linkedLumpSumId) {
-          data.linkedLumpSumId = old.linkedLumpSumId;
-          syncLumpSumFromTransaction(old.linkedLumpSumId, data);
+        if (old2 && old2.linkedLumpSumId) {
+          data.linkedLumpSumId = old2.linkedLumpSumId;
+          syncLumpSumFromTransaction(old2.linkedLumpSumId, data);
           const idx = state.transactions.findIndex(x => x.id === id);
           if (idx !== -1) state.transactions[idx] = data;
-        } else if (old && old.linkedPairId) {
+        } else if (old2 && old2.linkedPairId) {
           // Editing either side of an existing debt-payment pair. Amount,
           // date, and description stay mirrored on both sides. Only the
           // cash (expense) side can re-target which debt it's linked to.
-          data.linkedPairId = old.linkedPairId;
-          const sibling = state.transactions.find(x => x.linkedPairId === old.linkedPairId && x.id !== id);
+          data.linkedPairId = old2.linkedPairId;
+          const sibling = state.transactions.find(x => x.linkedPairId === old2.linkedPairId && x.id !== id);
           if (sibling) {
-            if (!(old.accountId || '').startsWith('debt-') && debtLinkId) {
+            if (!(old2.accountId || '').startsWith('debt-') && debtLinkId) {
               sibling.accountId = `debt-${debtLinkId}`;
             }
             sibling.date = data.date;
@@ -3768,7 +4002,7 @@
         } else {
           if (id) {
             const idx = state.transactions.findIndex(x => x.id === id);
-            if (idx !== -1) state.transactions[idx] = data;
+            if (idx !== -1) state.transactions[idx] = data; else state.transactions.push(data);
           } else {
             state.transactions.push(data);
           }
