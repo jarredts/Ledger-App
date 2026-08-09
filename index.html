@@ -749,7 +749,7 @@
           <p class="text-[10px] text-gray-400 leading-relaxed">
             <strong>Not financial advice.</strong> This app is a personal budgeting and forecasting tool provided as-is, with no warranty of any kind. It does not constitute financial, legal, tax, or investment advice, and its creator is not a financial advisor. All calculations are estimates based on the numbers you enter and may contain errors — verify anything important against your actual account statements. You are solely responsible for your own financial decisions and outcomes.
           </p>
-          <p class="text-[10px] text-gray-400 text-center">Version 415.11.11</p>
+          <p class="text-[10px] text-gray-400 text-center">Version 415.11.12</p>
         </div>
       </div>
     </div>
@@ -3518,7 +3518,7 @@
         let incomeActual = 0, incomePlanned = 0, expenseActual = 0, expensePlanned = 0;
 
         state.transactions.forEach(t => {
-          if (t.isTransfer) return;
+          if (t.isTransfer || (t.accountId || '').startsWith('debt-')) return;
           if (t.date < startDateStr || t.date > endDateStr) return;
           const isActual = t.date <= todayStr;
           if (t.type === 'income') { if (isActual) incomeActual += t.amount; else incomePlanned += t.amount; }
@@ -4815,15 +4815,14 @@
           if (anchor > earliestDate) earliestDate = anchor;
         }
 
+        const cashTransactions = state.transactions.filter(t => !(t.accountId || '').startsWith('debt-'));
+
         const txByDate = {};
-        state.transactions.forEach(t => {
+        cashTransactions.forEach(t => {
           txByDate[t.date] = (txByDate[t.date] || 0) + (t.type === 'income' ? t.amount : -t.amount);
-          if (t.date < formatLocalDate(earliestDate)) {
-            // Pre-fold anything dated before the walk's start into the base below.
-          }
         });
         const earliestStr = formatLocalDate(earliestDate);
-        const preSum = state.transactions
+        const preSum = cashTransactions
           .filter(t => t.date < earliestStr)
           .reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
 
