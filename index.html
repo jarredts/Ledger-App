@@ -1173,6 +1173,16 @@
           </div>
         </div>
 
+        <div class="p-2.5 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold text-blue-800 uppercase">Payment Periods</span>
+            <button type="button" onclick="addDebtPaymentPeriod()" class="text-[10px] font-semibold text-blue-700 hover:text-blue-900">+ Add Period</button>
+          </div>
+          <p class="text-[9px] text-gray-500">Schedule the payment amount to change on a future date — pay extra starting whenever you can afford it, or change it after a promo ends — without splitting this into a second account. Each period applies from its start date until the next one begins (or indefinitely, if it's the last one).</p>
+          <p id="debtPaymentPeriodsEmptyHint" class="hidden text-[10px] text-gray-400 italic">No scheduled changes — using Target Payment above for the life of the debt.</p>
+          <div id="debtPaymentPeriodsList" class="space-y-1.5"></div>
+        </div>
+
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-[10px] font-bold text-gray-500 mb-0.5">CLOSING DATE (DAY 1-31)</label>
@@ -1256,6 +1266,7 @@
       </div>
       <p id="monthReportSubtitle" class="text-[11px] text-gray-500"></p>
       <div id="monthReportSummary" class="grid grid-cols-3 gap-2"></div>
+      <div id="monthReportCategoryFilter" class="flex flex-wrap gap-1.5"></div>
       <div id="monthReportList" class="space-y-3 text-xs"></div>
     </div>
   </div>
@@ -1278,14 +1289,83 @@
           <div>
             <label class="block text-gray-500 mb-1">Icon</label>
             <select id="catIcon" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-gray-800">
-              <option value="fa-tag">Tag</option>
-              <option value="fa-cart-shopping">Groceries</option>
-              <option value="fa-bolt">Utilities</option>
-              <option value="fa-utensils">Dining</option>
-              <option value="fa-car">Transport</option>
-              <option value="fa-house">Housing</option>
-              <option value="fa-gamepad">Entertainment</option>
-              <option value="fa-heart-pulse">Health</option>
+              <optgroup label="General">
+                <option value="fa-tag">Tag</option>
+                <option value="fa-question">Unassigned</option>
+                <option value="fa-star">Star</option>
+                <option value="fa-circle-dot">Dot</option>
+                <option value="fa-list">List</option>
+                <option value="fa-box">Box / Misc</option>
+              </optgroup>
+              <optgroup label="Money">
+                <option value="fa-wallet">Income / Wallet</option>
+                <option value="fa-money-bill">Cash</option>
+                <option value="fa-money-bill-transfer">Transfer</option>
+                <option value="fa-sack-dollar">Savings</option>
+                <option value="fa-piggy-bank">Piggy Bank</option>
+                <option value="fa-credit-card">Debts / Credit Card</option>
+                <option value="fa-hand-holding-dollar">Payment</option>
+                <option value="fa-chart-line">Investing</option>
+                <option value="fa-coins">Coins</option>
+                <option value="fa-percent">Interest / Fees</option>
+              </optgroup>
+              <optgroup label="Food">
+                <option value="fa-cart-shopping">Groceries</option>
+                <option value="fa-utensils">Dining</option>
+                <option value="fa-mug-saucer">Coffee</option>
+                <option value="fa-pizza-slice">Fast Food</option>
+                <option value="fa-basket-shopping">Shopping</option>
+              </optgroup>
+              <optgroup label="Home & Bills">
+                <option value="fa-house">Housing / Rent</option>
+                <option value="fa-bolt">Utilities</option>
+                <option value="fa-droplet">Water</option>
+                <option value="fa-fire">Gas / Heating</option>
+                <option value="fa-wifi">Internet</option>
+                <option value="fa-mobile-screen">Phone</option>
+                <option value="fa-couch">Furniture</option>
+                <option value="fa-broom">Household / Cleaning</option>
+                <option value="fa-screwdriver-wrench">Repairs</option>
+              </optgroup>
+              <optgroup label="Transport">
+                <option value="fa-car">Car / Transport</option>
+                <option value="fa-gas-pump">Fuel</option>
+                <option value="fa-bus">Public Transit</option>
+                <option value="fa-plane">Travel / Flights</option>
+                <option value="fa-taxi">Rideshare / Taxi</option>
+                <option value="fa-parking">Parking</option>
+              </optgroup>
+              <optgroup label="Family & Pets">
+                <option value="fa-baby">Kids / Baby</option>
+                <option value="fa-child">Childcare</option>
+                <option value="fa-paw">Pets</option>
+                <option value="fa-graduation-cap">Education</option>
+                <option value="fa-book">Books / School</option>
+                <option value="fa-gift">Gifts</option>
+              </optgroup>
+              <optgroup label="Health & Personal">
+                <option value="fa-heart-pulse">Health</option>
+                <option value="fa-tooth">Dental</option>
+                <option value="fa-pills">Pharmacy / Meds</option>
+                <option value="fa-dumbbell">Fitness</option>
+                <option value="fa-spa">Personal Care</option>
+                <option value="fa-shirt">Clothing</option>
+                <option value="fa-scissors">Salon / Grooming</option>
+              </optgroup>
+              <optgroup label="Fun & Other">
+                <option value="fa-gamepad">Entertainment</option>
+                <option value="fa-film">Movies</option>
+                <option value="fa-music">Music</option>
+                <option value="fa-ticket">Events / Tickets</option>
+                <option value="fa-umbrella-beach">Vacation</option>
+                <option value="fa-dog">Dog</option>
+                <option value="fa-cat">Cat</option>
+                <option value="fa-briefcase">Work / Business</option>
+                <option value="fa-building">Office</option>
+                <option value="fa-shield-heart">Insurance</option>
+                <option value="fa-hand-holding-heart">Charity / Donations</option>
+                <option value="fa-right-left">Transfer</option>
+              </optgroup>
             </select>
           </div>
         </div>
@@ -1677,6 +1757,7 @@
           if (d.promoEnabled === undefined) d.promoEnabled = false;
           if (d.promoEndDate === undefined) d.promoEndDate = '';
           if (d.endDate === undefined) d.endDate = '';
+          if (!Array.isArray(d.paymentPeriods)) d.paymentPeriods = [];
         });
       }
       persist();
@@ -2462,6 +2543,30 @@
       _debtBalanceCache = {};
     }
 
+    // Resolves the scheduled payment amount that applies to a debt on a given
+    // date, accounting for any Payment Periods set up in the debt editor (see
+    // "Payment Periods" section of the Add/Edit Debt modal). This lets a
+    // payment amount change on a future date — e.g. "starting March 2027, pay
+    // $300 instead of $150" — without splitting the account into a second
+    // record (which used to be the only way, and caused it to show up twice
+    // in Cash/Debt Calendar account filters). The most recently-started
+    // period that has already begun as of dateStr wins; if none have started
+    // yet, the debt's normal Target Payment applies.
+    function getEffectiveMinPayment(debt, dateStr) {
+      const periods = debt.paymentPeriods;
+      if (!periods || periods.length === 0) return debt.minPayment;
+      let amt = debt.minPayment;
+      let bestStart = null;
+      periods.forEach(p => {
+        if (!p.startDate || p.startDate > dateStr) return;
+        if (bestStart === null || p.startDate > bestStart) {
+          bestStart = p.startDate;
+          amt = Math.max(0, parseFloat(p.amount) || 0);
+        }
+      });
+      return amt;
+    }
+
     function getDebtBalanceAsOf(debt, dateStr) {
       const debtStartDate = debt.startDate ? parseLocalDate(debt.startDate) : parseLocalDate('2026-01-01');
       const targetDate = parseLocalDate(dateStr);
@@ -2513,7 +2618,7 @@
             const excKey = `debt-pay-${debt.id}_${k}`;
             if (!state.exceptions[excKey] || !state.exceptions[excKey].skipped) {
               const overrideAmt = state.debtPaymentOverrides[excKey];
-              const scheduledAmt = (overrideAmt !== undefined) ? overrideAmt : debt.minPayment;
+              const scheduledAmt = (overrideAmt !== undefined) ? overrideAmt : getEffectiveMinPayment(debt, k);
               const pmt = Math.min(curBal, scheduledAmt);
               curBal -= pmt;
             }
@@ -2654,7 +2759,7 @@
           const isSkipped = state.exceptions[excKey] && state.exceptions[excKey].skipped;
           const paidOff = isDebtPaidOffBefore(d, targetDate);
           const overrideAmt = state.debtPaymentOverrides[excKey];
-          const paymentAmt = (overrideAmt !== undefined) ? overrideAmt : d.minPayment;
+          const paymentAmt = (overrideAmt !== undefined) ? overrideAmt : getEffectiveMinPayment(d, targetDateStr);
 
           if (activeForecastMode === 'liquid') {
             if (!paidOff && d.includeInForecast && d.dueDate && parseInt(d.dueDate) === targetDate.getDate() && !isSkipped) {
@@ -3388,6 +3493,9 @@
             const limit = parseFloat(d.creditLimit || 0);
             const utilPct = limit > 0 ? ((d.balance / limit) * 100).toFixed(1) : null;
             const paidFromAcc = d.paymentAccountId ? state.accounts.find(a => a.id === d.paymentAccountId) : null;
+            const todayStr = formatLocalDate(new Date());
+            const effectiveNow = getEffectiveMinPayment(d, todayStr);
+            const upcomingPeriod = (d.paymentPeriods || []).filter(p => p.startDate > todayStr).sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
 
             let balance = d.balance;
             let months = 0;
@@ -3409,10 +3517,11 @@
               }
 
               const monthlyInterest = (activeApr / 100) / 12;
+              const scheduledPmt = getEffectiveMinPayment(d, formatLocalDate(curSimDate));
               balance += balance * monthlyInterest;
-              balance -= d.minPayment;
+              balance -= scheduledPmt;
 
-              if (months === 1 && d.minPayment <= d.balance * monthlyInterest && activeApr > 0) {
+              if (months === 1 && scheduledPmt <= d.balance * monthlyInterest && activeApr > 0) {
                 months = -1;
                 break;
               }
@@ -3431,13 +3540,14 @@
                       Starts: ${startDateStr} ${d.endDate ? ` · Ends: ${d.endDate}` : ''} · APR: ${d.apr}%
                       ${limit > 0 ? `<br>Credit Limit: ${fmtMoney(limit)}` : ''}
                       ${d.promoEnabled ? `<br><span class="text-amber-600 font-semibold">Promo: ${promoApr}% ${d.promoEndDate ? `until ${d.promoEndDate}` : `for ${promoMonths} mos`}</span>` : ''}
+                      ${upcomingPeriod ? `<br><span class="text-blue-600 font-semibold">Payment changes to ${fmtMoney(upcomingPeriod.amount)} on ${upcomingPeriod.startDate}${upcomingPeriod.label ? ` (${upcomingPeriod.label})` : ''}</span>` : ''}
                       ${d.closingDate ? `<br>Closing Day: ${d.closingDate}` : ''}
                       <br>Paid from: ${paidFromAcc ? paidFromAcc.name : '<span class="text-amber-600">Not linked — shows on every account</span>'}
                     </div>
                   </div>
                   <div class="text-right">
                     <div class="font-mono font-bold text-red-600 text-sm">${fmtMoney(d.balance)}</div>
-                    <div class="text-[10px] text-gray-500 font-mono">Target: ${fmtMoney(d.minPayment)}/mo</div>
+                    <div class="text-[10px] text-gray-500 font-mono">Target: ${fmtMoney(effectiveNow)}/mo</div>
                     <button onclick="openDebtModal('${d.id}')" class="text-[10px] text-amber-600 font-semibold underline hover:text-amber-700 mt-1 inline-block"><i class="fa-solid fa-pen"></i> Edit</button>
                   </div>
                 </div>
@@ -3694,6 +3804,12 @@
     // for that account/day + getRecurringForDate), so the report always matches
     // whatever the Cash/Debt Calendar and current account filter are showing —
     // no separate parallel calculation to drift out of sync.
+    // Cached between openMonthReport() and renderMonthReportList() so clicking
+    // a category badge to filter doesn't have to re-walk the whole month.
+    let _monthReportDays = [];
+    let _monthReportFilterLabel = '';
+    let _monthReportActiveCategory = null;
+
     function openMonthReport() {
       const year = currentMonthDate.getFullYear();
       const month = currentMonthDate.getMonth();
@@ -3755,13 +3871,75 @@
         </div>
       `;
 
+      _monthReportDays = days;
+      _monthReportFilterLabel = filterLabel;
+      _monthReportActiveCategory = null;
+      renderMonthReportCategoryBadges();
+      renderMonthReportList();
+
+      openModal('monthReportModal');
+    }
+
+    // Category badges: one per category that has at least one item somewhere in
+    // the month, each showing that category's icon/color and a running total.
+    // Tapping one filters the day list below to just that category; tapping it
+    // again (or "All") clears the filter.
+    function renderMonthReportCategoryBadges() {
+      const bar = document.getElementById('monthReportCategoryFilter');
+      const totals = {}; // category name -> { amount, icon, color }
+      _monthReportDays.forEach(d => {
+        d.items.forEach(t => {
+          if (t.isTransfer) return;
+          const catName = t.category || 'Unassigned';
+          const cat = state.categories.find(c => c.name === catName);
+          if (!totals[catName]) totals[catName] = { amount: 0, icon: cat ? cat.icon : 'fa-tag', color: cat ? cat.color : '#9CA3AF' };
+          totals[catName].amount += t.amount;
+        });
+      });
+      const names = Object.keys(totals).sort((a, b) => totals[b].amount - totals[a].amount);
+      if (names.length === 0) { bar.innerHTML = ''; return; }
+
+      const allBtn = `
+        <button onclick="filterMonthReportByCategory(null)" class="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border ${_monthReportActiveCategory === null ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-300'}">
+          <i class="fa-solid fa-layer-group"></i> All
+        </button>`;
+
+      bar.innerHTML = allBtn + names.map(name => {
+        const c = totals[name];
+        const isActive = _monthReportActiveCategory === name;
+        return `
+          <button onclick="filterMonthReportByCategory('${name.replace(/'/g, "\\'")}')" title="${name} \u00b7 ${fmtMoney(c.amount)}" class="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold border ${isActive ? 'text-white border-transparent' : 'bg-white border-gray-300'}" style="${isActive ? `background-color:${c.color}` : `color:${c.color}`}">
+            <i class="fa-solid ${c.icon}"></i> ${name}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function filterMonthReportByCategory(catName) {
+      _monthReportActiveCategory = (_monthReportActiveCategory === catName) ? null : catName;
+      renderMonthReportCategoryBadges();
+      renderMonthReportList();
+    }
+
+    function renderMonthReportList() {
       const list = document.getElementById('monthReportList');
+      const filterCat = _monthReportActiveCategory;
+      const filterLabel = _monthReportFilterLabel;
+
+      const days = filterCat === null
+        ? _monthReportDays
+        : _monthReportDays
+            .map(d => ({ ...d, items: d.items.filter(t => (t.category || 'Unassigned') === filterCat) }))
+            .filter(d => d.items.length > 0);
+
       list.innerHTML = days.length === 0
-        ? `<div class="text-gray-500 italic p-3 text-center">No transactions or recurring activity for ${filterLabel} this month.</div>`
+        ? `<div class="text-gray-500 italic p-3 text-center">${filterCat ? `No "${filterCat}" activity` : 'No transactions or recurring activity'} for ${filterLabel} this month.</div>`
         : days.map(d => {
             const dayDate = parseLocalDate(d.dateStr);
             const dayLabel = dayDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-            const dayNet = d.dayIncome - d.dayExpense;
+            const dayIncome = d.items.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+            const dayExpense = d.items.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+            const dayNet = dayIncome - dayExpense;
             return `
               <div>
                 <button onclick="jumpToMonthReportDay('${d.dateStr}')" class="w-full flex justify-between items-center px-1 py-1 border-b border-gray-200 hover:bg-gray-50 rounded">
@@ -3779,8 +3957,6 @@
               </div>
             `;
           }).join('');
-
-      openModal('monthReportModal');
     }
 
     function jumpToMonthReportDay(dateStr) {
@@ -4337,6 +4513,56 @@
       document.getElementById('debtEffectiveDateContainer').classList.toggle('hidden', scope !== 'from_date');
     }
 
+    // --- DEBT PAYMENT PERIODS (in-modal working copy, committed to the debt
+    // record on Save — same pattern as the promo fields above) ---
+    let currentDebtPaymentPeriods = [];
+
+    function renderDebtPaymentPeriodsUI() {
+      const list = document.getElementById('debtPaymentPeriodsList');
+      const emptyHint = document.getElementById('debtPaymentPeriodsEmptyHint');
+      if (!list) return;
+      const sorted = currentDebtPaymentPeriods.slice().sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
+      if (sorted.length === 0) {
+        list.innerHTML = '';
+        emptyHint.classList.remove('hidden');
+        return;
+      }
+      emptyHint.classList.add('hidden');
+      list.innerHTML = sorted.map((p, i) => `
+        <div class="p-1.5 rounded-lg bg-white border border-blue-200 space-y-1.5">
+          <div class="grid grid-cols-12 gap-1.5 items-center">
+            <input type="date" value="${p.startDate || ''}" onchange="updateDebtPaymentPeriod('${p.id}','startDate',this.value)" title="Starts on" class="col-span-6 bg-gray-50 border border-gray-300 rounded-lg p-1.5 text-[11px] text-gray-800">
+            <div class="col-span-5 flex items-center bg-gray-50 border border-gray-300 rounded-lg px-1.5">
+              <span class="text-gray-500 text-[11px]">$</span>
+              <input type="number" min="0" step="1" value="${p.amount}" onchange="updateDebtPaymentPeriod('${p.id}','amount',this.value)" class="w-full bg-transparent p-1.5 text-[11px] text-gray-800">
+            </div>
+            <button type="button" onclick="deleteDebtPaymentPeriod('${p.id}')" title="Delete this period" class="col-span-1 text-gray-400 hover:text-red-600 text-center"><i class="fa-solid fa-trash text-[11px]"></i></button>
+          </div>
+          <input type="text" value="${p.label || ''}" onchange="updateDebtPaymentPeriod('${p.id}','label',this.value)" placeholder="Label (e.g. After raise kicks in)" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-1.5 text-[11px] text-gray-800">
+          <div class="text-[9px] text-gray-400 pl-0.5">${i < sorted.length - 1 ? `Applies ${p.startDate || '\u2014'} through ${new Date(new Date(sorted[i + 1].startDate).getTime() - 86400000).toISOString().slice(0, 10)}` : `Applies from ${p.startDate || '\u2014'} onward`}</div>
+        </div>
+      `).join('');
+    }
+
+    function addDebtPaymentPeriod() {
+      const baseAmt = parseFloat(document.getElementById('debtMinPayment').value) || 0;
+      currentDebtPaymentPeriods.push({ id: 'pp-' + Date.now(), startDate: formatLocalDate(new Date()), amount: baseAmt, label: '' });
+      renderDebtPaymentPeriodsUI();
+    }
+
+    function updateDebtPaymentPeriod(id, field, val) {
+      const p = currentDebtPaymentPeriods.find(x => x.id === id);
+      if (!p) return;
+      if (field === 'amount') p.amount = Math.max(0, parseFloat(val) || 0);
+      else p[field] = val;
+      renderDebtPaymentPeriodsUI();
+    }
+
+    function deleteDebtPaymentPeriod(id) {
+      currentDebtPaymentPeriods = currentDebtPaymentPeriods.filter(x => x.id !== id);
+      renderDebtPaymentPeriodsUI();
+    }
+
     function openDebtPaymentOverride(debtId, dateStr) {
       const debt = state.debts.find(d => d.id === debtId);
       if (!debt) return;
@@ -4410,6 +4636,7 @@
         document.getElementById('debtEditScope').value = 'entire';
         document.getElementById('debtEffectiveDate').value = selectedDateStr;
         toggleDebtEditScopeUI();
+        currentDebtPaymentPeriods = (d.paymentPeriods || []).map(p => ({ ...p }));
       } else {
         document.getElementById('debtId').value = '';
         document.getElementById('debtName').value = '';
@@ -4431,8 +4658,10 @@
         document.getElementById('debtAutopay').checked = false;
 
         document.getElementById('debtEditScopeContainer').classList.add('hidden');
+        currentDebtPaymentPeriods = [];
       }
       togglePromoInputs();
+      renderDebtPaymentPeriodsUI();
       openModal('debtModal');
     }
 
@@ -4478,7 +4707,11 @@
         category: document.getElementById('debtCategory').value || 'Debts',
         paymentAccountId: document.getElementById('debtPaymentAccountId').value || '',
         includeInForecast: document.getElementById('debtIncludeInForecast').checked,
-        autopay: document.getElementById('debtAutopay').checked
+        autopay: document.getElementById('debtAutopay').checked,
+        paymentPeriods: currentDebtPaymentPeriods
+          .filter(p => p.startDate)
+          .map(p => ({ id: p.id, startDate: p.startDate, amount: Math.max(0, parseFloat(p.amount) || 0), label: (p.label || '').trim() }))
+          .sort((a, b) => a.startDate.localeCompare(b.startDate))
       };
 
       if (id) {
@@ -4608,7 +4841,9 @@
       active.forEach(d => { if (!idsInOrder.includes(d.id)) idsInOrder.push(d.id); });
 
       const work = {};
+      const debtById = {};
       active.forEach(d => {
+        debtById[d.id] = d;
         const override = minOverrides && minOverrides[d.id];
         work[d.id] = {
           balance: d.balance,
@@ -4652,6 +4887,13 @@
         idsInOrder.forEach(id => {
           const w = work[id];
           if (w.balance <= 0.005) return;
+          // A manual override on the Payoff tab always wins; otherwise pick up
+          // any scheduled Payment Period for this debt as of this month (see
+          // getEffectiveMinPayment), so a future payment change you've already
+          // set up on the debt itself is reflected in the payoff estimate too.
+          const override = minOverrides && minOverrides[id];
+          const hasOverride = override !== undefined && override !== '' && !isNaN(parseFloat(override));
+          w.minPayment = hasOverride ? Math.max(0, parseFloat(override)) : getEffectiveMinPayment(debtById[id], curDateStr);
           let activeApr = w.apr;
           if (w.promoEnabled) {
             if (w.promoEndDate && curDate <= w.promoEndDate) activeApr = w.promoApr;
