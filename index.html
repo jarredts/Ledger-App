@@ -4896,7 +4896,7 @@
           // set up on the debt itself is reflected in the payoff estimate too.
           const override = minOverrides && minOverrides[id];
           const hasOverride = override !== undefined && override !== '' && !isNaN(parseFloat(override));
-          w.minPayment = hasOverride ? Math.max(0, parseFloat(override)) : getEffectiveMinPayment(debtById[id], curDateStr);
+          w.minPayment = hasOverride ? Math.max(0, parseFloat(override)) : debtById[id].minPayment;
           let activeApr = w.apr;
           if (w.promoEnabled) {
             if (w.promoEndDate && curDate <= w.promoEndDate) activeApr = w.promoApr;
