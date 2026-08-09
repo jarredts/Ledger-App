@@ -478,12 +478,12 @@
               </label>
               <span class="info-tip inline-block align-middle">
                 <span class="info-icon-btn" onclick="toggleInfoTip('infoSuggested', event)" title="More info"><i class="fa-solid fa-info"></i></span>
-                <span id="infoSuggested" class="info-tip-bubble hidden">Scans your logged one-time income, recurring paychecks for extra pay periods (like a 5th weekly paycheck), and month-end points where money can safely come out — checked against next month's lowest projected balance so pulling it never pushes next month's worst day below your cushion. The $ below sets both your minimum cushion and the smallest surplus worth mentioning.</span>
+                <span id="infoSuggested" class="info-tip-bubble hidden">Scans your logged one-time income, recurring paychecks for extra pay periods (like a 5th weekly paycheck), and month-end points where money can safely come out — capped so pulling it never pushes next month's worst day below $0. The $ below only controls the smallest amount worth bothering to suggest; it isn't subtracted from what's actually safe.</span>
               </span>
             </div>
           </div>
           <div class="flex items-center gap-2 text-[10px] text-amber-800">
-            <span>Cushion to keep / minimum surplus to suggest, over</span>
+            <span>Minimum surplus worth suggesting, over</span>
             <div class="flex items-center bg-white border border-amber-300 rounded-lg px-1.5">
               <span class="text-amber-600">$</span>
               <input id="payoffSuggestThresholdInput" type="number" min="0" step="25" onchange="updatePayoffSuggestThreshold(this.value)" class="w-14 bg-transparent p-1 text-[10px] text-gray-800">
@@ -749,7 +749,7 @@
           <p class="text-[10px] text-gray-400 leading-relaxed">
             <strong>Not financial advice.</strong> This app is a personal budgeting and forecasting tool provided as-is, with no warranty of any kind. It does not constitute financial, legal, tax, or investment advice, and its creator is not a financial advisor. All calculations are estimates based on the numbers you enter and may contain errors — verify anything important against your actual account statements. You are solely responsible for your own financial decisions and outcomes.
           </p>
-          <p class="text-[10px] text-gray-400 text-center">Version 415.11.10</p>
+          <p class="text-[10px] text-gray-400 text-center">Version 415.11.11</p>
         </div>
       </div>
     </div>
@@ -3075,6 +3075,17 @@
           </button>
         `;
       }
+
+      // Trailing filler cells so the last row matches the leading blanks —
+      // without these, unfilled grid slots just show the container's own
+      // gutter-line background color, which looked like a different, darker
+      // "blank" style than the intentional light-gray boxes before day 1.
+      const totalCellsSoFar = startDayIndex + lastDay.getDate();
+      const trailingBlanks = (7 - (totalCellsSoFar % 7)) % 7;
+      for (let i = 0; i < trailingBlanks; i++) {
+        grid.innerHTML += `<div class="min-h-[58px] bg-gray-100"></div>`;
+      }
+
       renderSelectedDay();
     }
 
@@ -4953,8 +4964,11 @@
           if (endBal === undefined || nextMonthMin === undefined) continue;
 
           // Can't pull out more than is actually sitting there at month-end,
-          // and can't pull out more than next month's worst day can absorb.
-          const safeAmount = Math.min(endBal, nextMonthMin) - threshold;
+          // and can't pull out more than next month's worst day can absorb
+          // before going negative. The cushion/threshold field only decides
+          // whether a safe amount is big enough to bother suggesting — it
+          // does NOT get subtracted from what's actually safe to take.
+          const safeAmount = Math.min(endBal, nextMonthMin);
 
           if (safeAmount >= threshold) {
             const monthEndStr = formatLocalDate(monthEnd);
@@ -4964,7 +4978,7 @@
               key: `month-${key}`,
               date: monthEndStr,
               amount: roundedSafe,
-              label: `Safe to pull ${fmtMoney(roundedSafe)} at end of ${monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} — ${nextMonthDate.toLocaleDateString('en-US', { month: 'long' })}'s lowest point (${fmtMoney(nextMonthMin)}) stays above your ${fmtMoney(threshold)} cushion after that`
+              label: `Safe to pull ${fmtMoney(roundedSafe)} at end of ${monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} — keeps ${nextMonthDate.toLocaleDateString('en-US', { month: 'long' })}'s lowest point at $0 or above`
             });
           }
         }
