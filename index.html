@@ -294,7 +294,7 @@
           <div class="text-red-500 bg-red-50/50 py-1 rounded">Sat</div>
         </div>
 
-        <div id="calendarGrid" class="grid grid-cols-7 gap-1.5"></div>
+        <div id="calendarGrid" class="grid grid-cols-7 gap-px bg-gray-300 border border-gray-300 rounded-lg overflow-hidden"></div>
 
         <!-- Selected Day Card -->
         <div class="p-3.5 rounded-xl bg-white border border-gray-300 shadow-sm space-y-2.5">
@@ -478,12 +478,12 @@
               </label>
               <span class="info-tip inline-block align-middle">
                 <span class="info-icon-btn" onclick="toggleInfoTip('infoSuggested', event)" title="More info"><i class="fa-solid fa-info"></i></span>
-                <span id="infoSuggested" class="info-tip-bubble hidden">Scans your logged one-time income, recurring paychecks for extra pay periods (like a 5th weekly paycheck), and upcoming months projected to close out with a net surplus above your threshold.</span>
+                <span id="infoSuggested" class="info-tip-bubble hidden">Scans your logged one-time income, recurring paychecks for extra pay periods (like a 5th weekly paycheck), and month-end points where money can safely come out — checked against next month's lowest projected balance so pulling it never pushes next month's worst day below your cushion. The $ below sets both your minimum cushion and the smallest surplus worth mentioning.</span>
               </span>
             </div>
           </div>
           <div class="flex items-center gap-2 text-[10px] text-amber-800">
-            <span>Suggest income or month-end surplus over</span>
+            <span>Cushion to keep / minimum surplus to suggest, over</span>
             <div class="flex items-center bg-white border border-amber-300 rounded-lg px-1.5">
               <span class="text-amber-600">$</span>
               <input id="payoffSuggestThresholdInput" type="number" min="0" step="25" onchange="updatePayoffSuggestThreshold(this.value)" class="w-14 bg-transparent p-1 text-[10px] text-gray-800">
@@ -570,11 +570,11 @@
     <button id="nav-debts" onclick="switchTab('debts')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800 px-3.5 py-1.5 -my-1">
       <i class="fa-solid fa-credit-card text-base"></i><span class="text-[10px] font-medium">Debts</span>
     </button>
-    <button id="nav-payoff" onclick="switchTab('payoff')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800 px-3.5 py-1.5 -my-1">
-      <i class="fa-solid fa-flag-checkered text-base"></i><span class="text-[10px] font-medium">Payoff</span>
-    </button>
     <button id="nav-budgets" onclick="switchTab('budgets')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800 px-3.5 py-1.5 -my-1">
       <i class="fa-solid fa-bullseye text-base"></i><span class="text-[10px] font-medium">Budgets</span>
+    </button>
+    <button id="nav-payoff" onclick="switchTab('payoff')" class="flex flex-col items-center gap-1 text-gray-500 hover:text-gray-800 px-3.5 py-1.5 -my-1">
+      <i class="fa-solid fa-flag-checkered text-base"></i><span class="text-[10px] font-medium">Payoff</span>
     </button>
   </nav>
 
@@ -749,7 +749,7 @@
           <p class="text-[10px] text-gray-400 leading-relaxed">
             <strong>Not financial advice.</strong> This app is a personal budgeting and forecasting tool provided as-is, with no warranty of any kind. It does not constitute financial, legal, tax, or investment advice, and its creator is not a financial advisor. All calculations are estimates based on the numbers you enter and may contain errors — verify anything important against your actual account statements. You are solely responsible for your own financial decisions and outcomes.
           </p>
-          <p class="text-[10px] text-gray-400 text-center">Version 415.11.9</p>
+          <p class="text-[10px] text-gray-400 text-center">Version 415.11.10</p>
         </div>
       </div>
     </div>
@@ -2227,6 +2227,13 @@
       return (num < 0 ? '-$' : '$') + Math.round(Math.abs(num)).toLocaleString('en-US');
     }
 
+    // Calendar day cells need every character to count — no $ sign, no comma,
+    // just a sign and the whole-dollar digits, so a 5-digit balance still
+    // fits without truncating to "...".
+    function fmtMoneyCalendar(num) {
+      return (num < 0 ? '-' : '') + Math.round(Math.abs(num)).toLocaleString('en-US', { useGrouping: false });
+    }
+
     // Renders a small tappable "i" badge that reveals `text` in a floating
     // bubble underneath — used to tuck long explanatory copy out of the way
     // until someone actually wants it. `id` must be unique on the page.
@@ -3031,7 +3038,7 @@
       }
 
       for (let i = 0; i < startDayIndex; i++) {
-        grid.innerHTML += `<div class="min-h-[74px] p-1 rounded-xl bg-gray-200/40 border border-transparent"></div>`;
+        grid.innerHTML += `<div class="min-h-[58px] bg-gray-100"></div>`;
       }
 
       for (let day = 1; day <= lastDay.getDate(); day++) {
@@ -3048,27 +3055,22 @@
         const isSelected = dateStr === selectedDateStr;
         const isToday = dateStr === todayStr;
 
-        let isHighlighted = false;
-        if (monthHasNegative) {
-          if (dayBalance === minBal) isHighlighted = true;
-        } else {
-          if (dayBalance === maxBal) isHighlighted = true;
-        }
+        let isHighlighted = (dayBalance === minBal);
 
         grid.innerHTML += `
-          <button onclick="selectDate('${dateStr}')" class="min-h-[74px] p-1.5 rounded-lg flex flex-col justify-between transition-all relative ${
+          <button onclick="selectDate('${dateStr}')" class="min-h-[58px] px-0.5 py-1 flex flex-col justify-between transition-all relative ${
             isSelected 
-              ? 'bg-amber-100 border-2 border-amber-500 shadow-md' 
+              ? 'bg-amber-100 ring-2 ring-inset ring-amber-500 z-10' 
               : isToday
-                ? 'bg-white border-2 border-amber-400 shadow-sm'
-                : 'bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                ? 'bg-white ring-2 ring-inset ring-amber-400 z-10'
+                : 'bg-white hover:bg-gray-50'
           }">
-            <div class="flex justify-between w-full items-center">
+            <div class="flex justify-between w-full items-center px-0.5">
               <span class="text-xs font-mono font-bold w-5 h-5 flex items-center justify-center rounded-full ${isToday ? 'bg-amber-500 text-white' : isWeekend ? 'text-red-500' : 'text-gray-700'}">${day}</span>
               ${hasEvents ? '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>' : ''}
             </div>
-            <div class="text-[11px] font-mono truncate w-full leading-tight ${dayBalance < 0 ? 'text-red-600 font-bold' : 'text-emerald-700 font-medium'} ${isHighlighted ? 'font-black underline' : ''}">
-              ${hasEvents || isSelected || isToday ? fmtMoneyRounded(dayBalance) : ''}
+            <div class="text-xs font-mono text-center w-full leading-tight ${dayBalance < 0 ? 'text-red-600 font-bold' : 'text-emerald-700 font-medium'} ${isHighlighted ? 'font-black underline' : ''}">
+              ${hasEvents || isSelected || isToday ? fmtMoneyCalendar(dayBalance) : ''}
             </div>
           </button>
         `;
@@ -4819,6 +4821,7 @@
         const today = new Date();
         const horizonEnd = new Date(today.getFullYear(), today.getMonth() + monthsAhead + 1, 0);
         const monthEndBalance = {};
+        const monthMinBalance = {};
 
         let cur = new Date(earliestDate);
         while (cur <= horizonEnd) {
@@ -4826,15 +4829,20 @@
           runningBalance += (txByDate[k] || 0);
           getRecurringForDate(k).forEach(r => { runningBalance += (r.type === 'income' ? r.amount : -r.amount); });
 
+          const curMonthKey = `${cur.getFullYear()}-${cur.getMonth()}`;
+          if (monthMinBalance[curMonthKey] === undefined || runningBalance < monthMinBalance[curMonthKey]) {
+            monthMinBalance[curMonthKey] = runningBalance;
+          }
+
           const nextDay = new Date(cur);
           nextDay.setDate(nextDay.getDate() + 1);
           if (nextDay.getMonth() !== cur.getMonth()) {
-            monthEndBalance[`${cur.getFullYear()}-${cur.getMonth()}`] = runningBalance;
+            monthEndBalance[curMonthKey] = runningBalance;
           }
           cur.setDate(cur.getDate() + 1);
         }
 
-        return { monthEndBalance, baseline: state.accounts.reduce((s, a) => s + a.balance, 0) + preSum };
+        return { monthEndBalance, monthMinBalance, baseline: state.accounts.reduce((s, a) => s + a.balance, 0) + preSum };
       } finally {
         activeForecastMode = savedMode;
         selectedLiquidAccountIds = savedLiquidIds;
@@ -4923,34 +4931,40 @@
         });
       });
 
-      // 3. Months projected to close out with an unusually large net surplus —
-      // a "high point" month where a lot more came in than went out, whether
-      // that's one big windfall or just a lighter-expense month.
+      // 3. Months where pulling money out at month-end is actually safe: the
+      // ceiling isn't this month's net change, it's whether NEXT month's
+      // lowest point (its roughest day before the next paycheck) can absorb
+      // losing that money and still stay above the cushion you've set below.
+      // This mirrors the manual check: "I've got $X at month-end, next
+      // month's low point is $Y — if Y minus X still isn't red, it's safe."
       {
         const monthsAhead = 12;
-        const { monthEndBalance, baseline } = computeMonthEndBalances(monthsAhead);
+        const { monthEndBalance, monthMinBalance } = computeMonthEndBalances(monthsAhead + 1);
         const today = new Date();
         for (let i = 0; i < monthsAhead; i++) {
           const monthDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
           const monthEnd = new Date(today.getFullYear(), today.getMonth() + i + 1, 0);
           const key = `${monthDate.getFullYear()}-${monthDate.getMonth()}`;
-          const prevMonthDate = new Date(today.getFullYear(), today.getMonth() + i - 1, 1);
-          const prevKey = `${prevMonthDate.getFullYear()}-${prevMonthDate.getMonth()}`;
+          const nextMonthDate = new Date(today.getFullYear(), today.getMonth() + i + 1, 1);
+          const nextKey = `${nextMonthDate.getFullYear()}-${nextMonthDate.getMonth()}`;
 
           const endBal = monthEndBalance[key];
-          if (endBal === undefined) continue;
-          const startBal = monthEndBalance[prevKey] !== undefined ? monthEndBalance[prevKey] : baseline;
-          const surplus = endBal - startBal;
+          const nextMonthMin = monthMinBalance[nextKey];
+          if (endBal === undefined || nextMonthMin === undefined) continue;
 
-          if (surplus >= threshold) {
+          // Can't pull out more than is actually sitting there at month-end,
+          // and can't pull out more than next month's worst day can absorb.
+          const safeAmount = Math.min(endBal, nextMonthMin) - threshold;
+
+          if (safeAmount >= threshold) {
             const monthEndStr = formatLocalDate(monthEnd);
             if (existingMonths.has(monthEndStr.slice(0, 7))) continue;
-            const roundedSurplus = Math.round(surplus * 100) / 100;
+            const roundedSafe = Math.floor(safeAmount * 100) / 100;
             suggestions.push({
               key: `month-${key}`,
               date: monthEndStr,
-              amount: roundedSurplus,
-              label: `Strong month — projected to clear ${fmtMoney(roundedSurplus)} net in ${monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+              amount: roundedSafe,
+              label: `Safe to pull ${fmtMoney(roundedSafe)} at end of ${monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} — ${nextMonthDate.toLocaleDateString('en-US', { month: 'long' })}'s lowest point (${fmtMoney(nextMonthMin)}) stays above your ${fmtMoney(threshold)} cushion after that`
             });
           }
         }
