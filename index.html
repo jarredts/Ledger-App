@@ -4871,7 +4871,7 @@
       let rolledExtra = 0;
       const MAX_MONTHS = 600;
 
-      while (months < MAX_MONTHS) {
+            while (months < MAX_MONTHS) {
         const anyActive = idsInOrder.some(id => work[id].balance > 0.005);
         if (!anyActive) break;
         months++;
@@ -4882,6 +4882,9 @@
         // Avalanche/Snowball: re-rank who's "next" based on this month's actual
         // balances and promo status, rather than the order computed on day one.
         idsInOrder = reorderForMonth(strategy, idsInOrder, work, curDate, months);
+
+        let newlyFreedThisMonth = 0;
+        let step1Leftover = 0;
 
         // Interest + minimum payments
         idsInOrder.forEach(id => {
@@ -4902,9 +4905,18 @@
           const interest = w.balance * (activeApr / 100 / 12);
           totalInterest += interest;
           w.balance += interest;
+          
           const pay = Math.min(w.minPayment, w.balance);
           w.balance -= pay;
-          if (w.balance <= 0.005) { w.balance = 0; if (w.payoffMonth === null) { w.payoffMonth = months; rolledExtra += w.minPayment; } }
+          step1Leftover += (w.minPayment - pay); // Capture the unspent portion of the budget
+          
+          if (w.balance <= 0.005) { 
+            w.balance = 0; 
+            if (w.payoffMonth === null) { 
+              w.payoffMonth = months; 
+              newlyFreedThisMonth += w.minPayment; // Queue the full minimum for next month
+            } 
+          }
         });
 
         // Lump sums scheduled this month
@@ -4913,14 +4925,19 @@
           if (ls.debtId && ls.debtId !== 'next' && work[ls.debtId] && work[ls.debtId].balance > 0.005) {
             thisOrder = [ls.debtId, ...idsInOrder.filter(x => x !== ls.debtId)];
           }
-          rolledExtra += cascadePayoffAmount(work, thisOrder, parseFloat(ls.amount) || 0, months);
+          newlyFreedThisMonth += cascadePayoffAmount(work, thisOrder, parseFloat(ls.amount) || 0, months);
         });
 
         // Extra monthly (or whatever period override applies this month) + anything
         // freed up from paid-off debts so far
         const effectiveExtra = getEffectiveExtraMonthly(curDateStr, extraMonthly || 0, extraPeriods);
-        const pool = effectiveExtra + rolledExtra;
-        rolledExtra += cascadePayoffAmount(work, idsInOrder, pool, months);
+        
+        // Only use the leftover budget + extra cash this month
+        const pool = effectiveExtra + rolledExtra + step1Leftover;
+        newlyFreedThisMonth += cascadePayoffAmount(work, idsInOrder, pool, months);
+        
+        // Commit the newly freed minimums to the cumulative rollover for next month
+        rolledExtra += newlyFreedThisMonth;
       }
 
       const neverPaysOff = idsInOrder.some(id => work[id].balance > 0.005);
@@ -4930,7 +4947,7 @@
       });
 
       return { months: neverPaysOff ? null : months, totalInterest, perDebt, neverPaysOff };
-    }
+
 
     function addMonthsToToday(n) {
       const d = new Date();
