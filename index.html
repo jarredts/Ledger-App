@@ -288,13 +288,13 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-7 gap-1 text-center font-mono text-[10px] text-gray-500 font-bold uppercase tracking-wider">
-          <div class="text-red-500 bg-red-50/50 py-0.5 rounded">Sun</div>
-          <div class="py-0.5">Mon</div><div class="py-0.5">Tue</div><div class="py-0.5">Wed</div><div class="py-0.5">Thu</div><div class="py-0.5">Fri</div>
-          <div class="text-red-500 bg-red-50/50 py-0.5 rounded">Sat</div>
+        <div class="grid grid-cols-7 gap-1 text-center font-mono text-xs text-gray-500 font-bold uppercase tracking-wider">
+          <div class="text-red-500 bg-red-50/50 py-1 rounded">Sun</div>
+          <div class="py-1">Mon</div><div class="py-1">Tue</div><div class="py-1">Wed</div><div class="py-1">Thu</div><div class="py-1">Fri</div>
+          <div class="text-red-500 bg-red-50/50 py-1 rounded">Sat</div>
         </div>
 
-        <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
+        <div id="calendarGrid" class="grid grid-cols-7 gap-1.5"></div>
 
         <!-- Selected Day Card -->
         <div class="p-3.5 rounded-xl bg-white border border-gray-300 shadow-sm space-y-2.5">
@@ -749,7 +749,7 @@
           <p class="text-[10px] text-gray-400 leading-relaxed">
             <strong>Not financial advice.</strong> This app is a personal budgeting and forecasting tool provided as-is, with no warranty of any kind. It does not constitute financial, legal, tax, or investment advice, and its creator is not a financial advisor. All calculations are estimates based on the numbers you enter and may contain errors — verify anything important against your actual account statements. You are solely responsible for your own financial decisions and outcomes.
           </p>
-          <p class="text-[10px] text-gray-400 text-center">Version 415.11.8</p>
+          <p class="text-[10px] text-gray-400 text-center">Version 415.11.9</p>
         </div>
       </div>
     </div>
@@ -3031,7 +3031,7 @@
       }
 
       for (let i = 0; i < startDayIndex; i++) {
-        grid.innerHTML += `<div class="min-h-[52px] p-1 rounded-xl bg-gray-200/40 border border-transparent"></div>`;
+        grid.innerHTML += `<div class="min-h-[74px] p-1 rounded-xl bg-gray-200/40 border border-transparent"></div>`;
       }
 
       for (let day = 1; day <= lastDay.getDate(); day++) {
@@ -3056,7 +3056,7 @@
         }
 
         grid.innerHTML += `
-          <button onclick="selectDate('${dateStr}')" class="min-h-[52px] p-1 rounded-lg flex flex-col justify-between transition-all relative ${
+          <button onclick="selectDate('${dateStr}')" class="min-h-[74px] p-1.5 rounded-lg flex flex-col justify-between transition-all relative ${
             isSelected 
               ? 'bg-amber-100 border-2 border-amber-500 shadow-md' 
               : isToday
@@ -3064,10 +3064,10 @@
                 : 'bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm'
           }">
             <div class="flex justify-between w-full items-center">
-              <span class="text-[10px] font-mono font-bold w-3.5 h-3.5 flex items-center justify-center rounded-full ${isToday ? 'bg-amber-500 text-white' : isWeekend ? 'text-red-500' : 'text-gray-700'}">${day}</span>
-              ${hasEvents ? '<span class="w-1 h-1 rounded-full bg-amber-500"></span>' : ''}
+              <span class="text-xs font-mono font-bold w-5 h-5 flex items-center justify-center rounded-full ${isToday ? 'bg-amber-500 text-white' : isWeekend ? 'text-red-500' : 'text-gray-700'}">${day}</span>
+              ${hasEvents ? '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>' : ''}
             </div>
-            <div class="text-[9px] font-mono truncate w-full leading-tight ${dayBalance < 0 ? 'text-red-600 font-bold' : 'text-emerald-700 font-medium'} ${isHighlighted ? 'font-black underline' : ''}">
+            <div class="text-[11px] font-mono truncate w-full leading-tight ${dayBalance < 0 ? 'text-red-600 font-bold' : 'text-emerald-700 font-medium'} ${isHighlighted ? 'font-black underline' : ''}">
               ${hasEvents || isSelected || isToday ? fmtMoneyRounded(dayBalance) : ''}
             </div>
           </button>
