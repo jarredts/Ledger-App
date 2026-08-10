@@ -263,7 +263,7 @@
 
         <label class="flex items-center gap-1.5 text-[11px] text-gray-500 px-1 py-1 cursor-pointer">
           <input type="checkbox" id="chkHidePastMonths" onchange="onHidePastMonthsToggle()" class="w-3 h-3 text-amber-500 rounded">
-          <span>Hide Past Months (stay on current month and forward)</span>
+          <span>Hide Past Months</span>
         </label>
       </div>
 
@@ -314,13 +314,6 @@
             <button id="btnLogPaymentFromCalendar" onclick="openExtraPaymentModal(selectedDebtIdForCalendar(), selectedDateStr)" class="hidden bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 hover:bg-emerald-600 hover:text-white transition-colors">
               <i class="fa-solid fa-money-bill-transfer"></i> Log Payment
             </button>
-          </div>
-          
-          <div class="flex justify-end pt-1">
-            <label class="flex items-center gap-1.5 text-[10px] text-gray-500 font-semibold cursor-pointer">
-              <input type="checkbox" id="chkHidePastSelectedDay" onchange="renderSelectedDay()" class="w-3 h-3 text-amber-500 rounded">
-              <span>Hide Paid / Cleared Items</span>
-            </label>
           </div>
 
           <div id="selectedDayEventsList" class="space-y-1.5 border-t border-gray-100 pt-2"></div>
@@ -526,7 +519,7 @@
         <h2 class="text-base font-bold text-gray-900">Budgets & Categories</h2>
         <div class="flex gap-2">
           <button onclick="openCategoryModal()" class="bg-gray-200 border border-gray-300 px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-300">+ Category</button>
-          <button onclick="openModal('budgetModal')" class="bg-amber-500 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-amber-600">+ Budget</button>
+          <button onclick="openBudgetModal()" class="bg-amber-500 text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-amber-600">+ Budget</button>
         </div>
       </div>
 
@@ -749,7 +742,7 @@
           <p class="text-[10px] text-gray-400 leading-relaxed">
             <strong>Not financial advice.</strong> This app is a personal budgeting and forecasting tool provided as-is, with no warranty of any kind. It does not constitute financial, legal, tax, or investment advice, and its creator is not a financial advisor. All calculations are estimates based on the numbers you enter and may contain errors — verify anything important against your actual account statements. You are solely responsible for your own financial decisions and outcomes.
           </p>
-          <p class="text-[10px] text-gray-400 text-center">Version 415.11.13</p>
+          <p class="text-[10px] text-gray-400 text-center">Version 415.11.14</p>
         </div>
       </div>
     </div>
@@ -782,7 +775,7 @@
         <div>
           <div class="font-bold text-gray-900 mb-1">Marking things paid</div>
           <p>Every transaction — recurring or one-off, in the day view or the Transactions tab — has a checkbox to mark it <b>Paid/Cleared</b>. This is just for your own tracking; it doesn't change the forecast math, so it's safe to check things off early or late without throwing off future balances.</p>
-          <p class="mt-1">For bills or income you know happen automatically (direct deposit, autopay), check <b>Autopay</b> when adding or editing that recurring rule — it'll mark each occurrence Paid on its own once the date passes, so you're not manually checking off the same thing every cycle.</p>
+          <p class="mt-1">For bills or income you know happen automatically (direct deposit, autopay), check <b>Autopay</b> when adding or editing that recurring rule — it'll mark each occurrence Paid on its own as soon as its date arrives, so you're not manually checking off the same thing every cycle.</p>
         </div>
 
         <div>
@@ -994,7 +987,7 @@
 
         <label id="recAutopayWrap" class="flex items-center gap-2 cursor-pointer bg-emerald-50 border border-emerald-200 rounded-lg p-2">
           <input type="checkbox" id="recAutopay" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
-          <span class="text-xs font-semibold text-gray-700">Autopay — mark each occurrence Paid automatically once its date passes</span>
+          <span class="text-xs font-semibold text-gray-700">Autopay — mark each occurrence Paid automatically as soon as its date arrives</span>
         </label>
         
         <div class="space-y-2">
@@ -1216,7 +1209,7 @@
         </div>
         <div class="flex items-center gap-2">
           <input id="debtAutopay" type="checkbox" class="w-4 h-4 text-amber-500 focus:ring-amber-500">
-          <label for="debtAutopay" class="text-gray-700">Autopay — automatically mark this debt's payments (and interest charges) Paid once their date passes</label>
+          <label for="debtAutopay" class="text-gray-700">Autopay — automatically mark this debt's payments (and interest charges) Paid as soon as their date arrives</label>
         </div>
         <button type="submit" class="w-full bg-amber-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-amber-600">Save Debt Account</button>
       </form>
@@ -1227,10 +1220,11 @@
   <div id="budgetModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
     <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-xl">
       <div class="flex justify-between items-center">
-        <h3 class="font-bold text-base text-gray-900">Add Monthly Budget</h3>
+        <h3 id="budgetModalTitle" class="font-bold text-base text-gray-900">Add Monthly Budget</h3>
         <button onclick="closeModal('budgetModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
       </div>
       <form onsubmit="saveBudget(event)" class="space-y-3">
+        <input type="hidden" id="budgetEditId" value="">
         <div>
           <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">Track</label>
           <select id="budType" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
@@ -1744,9 +1738,6 @@
       if (state.retentionAnchorDate === undefined) state.retentionAnchorDate = null;
       if (!state.categories.find(c => c.name.toLowerCase() === 'unassigned')) {
         state.categories.unshift({ id: 'cat-unassigned', name: 'Unassigned', color: '#9CA3AF', icon: 'fa-question' });
-      }
-      if (!state.categories.find(c => c.name.toLowerCase() === 'debts')) {
-        state.categories.push({ id: 'cat-debts', name: 'Debts', color: '#B91C1C', icon: 'fa-credit-card' });
       }
       if (!state.categories.find(c => c.name.toLowerCase() === 'transfer')) {
         state.categories.push({ id: 'cat-transfer', name: 'Transfer', color: '#64748B', icon: 'fa-right-left' });
@@ -3293,18 +3284,9 @@
         utilEl.classList.add('hidden');
       }
 
-      const hidePaid = document.getElementById('chkHidePastSelectedDay')?.checked || false;
-
       const oneTimes = state.transactions.filter(t => t.date === selectedDateStr && isAccountActive(t.accountId));
       const recurrings = getRecurringForDate(selectedDateStr);
       let allEvents = [...oneTimes, ...recurrings];
-
-      if (hidePaid) {
-        allEvents = allEvents.filter(t => {
-          const itemKey = t.instanceId || t.id;
-          return !state.paidStatus[itemKey];
-        });
-      }
 
       const dayIncome = allEvents.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
       const dayExpense = allEvents.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
@@ -3785,6 +3767,7 @@
               </span>
               <div class="flex items-center gap-2">
                 <span class="font-mono font-bold text-amber-700">${fmtMoney(total)} / ${fmtMoney(b.limit)}</span>
+                <button onclick="event.stopPropagation(); openBudgetModal('${b.id}')" class="text-gray-400 hover:text-amber-600 text-xs"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="event.stopPropagation(); deleteBudget('${b.id}')" class="text-gray-400 hover:text-red-600 text-xs"><i class="fa-solid fa-trash"></i></button>
               </div>
             </div>
@@ -5118,10 +5101,17 @@
       }
     }
 
-    function computeSuggestedLumpSums() {
+    function computeSuggestedLumpSums(planMonths) {
       const suggestions = [];
       const todayStr = formatLocalDate(new Date());
       const threshold = state.payoffSuggestThreshold || 0;
+
+      // How far ahead to look: as far as the debt-free date under the current
+      // payoff plan (strategy/extra/lump sums), so a big future paycheck or a
+      // safe end-of-month pull doesn't get missed just because it's more than
+      // a year out. Capped at 10 years as a sane ceiling, floored at 12 months
+      // so a very-near-term or "Never" payoff date still gets a useful window.
+      const monthsAhead = Math.min(120, Math.max(12, planMonths || 12));
 
       // Anything already sitting in the lump sum list — manually entered or
       // previously accepted — so a later scan doesn't re-suggest the same money.
@@ -5158,7 +5148,7 @@
 
         const ruleStart = parseLocalDate(rule.startDate);
         const horizonEnd = new Date();
-        horizonEnd.setFullYear(horizonEnd.getFullYear() + 1);
+        horizonEnd.setMonth(horizonEnd.getMonth() + monthsAhead);
         const ruleEnd = (rule.endType === 'until_date' && rule.endDate) ? parseLocalDate(rule.endDate) : null;
 
         let cursor = new Date(ruleStart);
@@ -5204,29 +5194,45 @@
       // ceiling isn't this month's net change, it's whether NEXT month's
       // lowest point (its roughest day before the next paycheck) can absorb
       // losing that money and still stay above the cushion you've set below.
-      // This mirrors the manual check: "I've got $X at month-end, next
-      // month's low point is $Y — if Y minus X still isn't red, it's safe."
+      // Looks 3 months out, not just 1 — a one-month check would greenlight a
+      // pull that's fine in month+1 but gets wiped out by a rougher dip in
+      // month+2 or month+3 (an annual bill, an insurance premium, etc.).
+      // This mirrors the manual check: "I've got $X at month-end, the roughest
+      // point across the next 3 months is $Y — if Y minus X still isn't red,
+      // it's safe."
       {
-        const monthsAhead = 12;
-        const { monthEndBalance, monthMinBalance } = computeMonthEndBalances(monthsAhead + 1);
+        const LOOKAHEAD_MONTHS = 3;
+        const { monthEndBalance, monthMinBalance } = computeMonthEndBalances(monthsAhead + LOOKAHEAD_MONTHS);
         const today = new Date();
         for (let i = 0; i < monthsAhead; i++) {
           const monthDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
           const monthEnd = new Date(today.getFullYear(), today.getMonth() + i + 1, 0);
           const key = `${monthDate.getFullYear()}-${monthDate.getMonth()}`;
-          const nextMonthDate = new Date(today.getFullYear(), today.getMonth() + i + 1, 1);
-          const nextKey = `${nextMonthDate.getFullYear()}-${nextMonthDate.getMonth()}`;
 
           const endBal = monthEndBalance[key];
-          const nextMonthMin = monthMinBalance[nextKey];
-          if (endBal === undefined || nextMonthMin === undefined) continue;
+          if (endBal === undefined) continue;
+
+          // Worst point across the next 3 months, not just the very next one.
+          let worstMin = undefined;
+          let worstMonthLabel = '';
+          for (let j = 1; j <= LOOKAHEAD_MONTHS; j++) {
+            const lookDate = new Date(today.getFullYear(), today.getMonth() + i + j, 1);
+            const lookKey = `${lookDate.getFullYear()}-${lookDate.getMonth()}`;
+            const lookMin = monthMinBalance[lookKey];
+            if (lookMin === undefined) continue;
+            if (worstMin === undefined || lookMin < worstMin) {
+              worstMin = lookMin;
+              worstMonthLabel = lookDate.toLocaleDateString('en-US', { month: 'long' });
+            }
+          }
+          if (worstMin === undefined) continue;
 
           // Can't pull out more than is actually sitting there at month-end,
-          // and can't pull out more than next month's worst day can absorb
-          // before going negative. The cushion/threshold field only decides
-          // whether a safe amount is big enough to bother suggesting — it
-          // does NOT get subtracted from what's actually safe to take.
-          const safeAmount = Math.min(endBal, nextMonthMin);
+          // and can't pull out more than the roughest of the next 3 months can
+          // absorb before going negative. The cushion/threshold field only
+          // decides whether a safe amount is big enough to bother suggesting —
+          // it does NOT get subtracted from what's actually safe to take.
+          const safeAmount = Math.min(endBal, worstMin);
 
           if (safeAmount >= threshold) {
             const monthEndStr = formatLocalDate(monthEnd);
@@ -5236,7 +5242,7 @@
               key: `month-${key}`,
               date: monthEndStr,
               amount: roundedSafe,
-              label: `Safe to pull ${fmtMoney(roundedSafe)} at end of ${monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} — keeps ${nextMonthDate.toLocaleDateString('en-US', { month: 'long' })}'s lowest point at $0 or above`
+              label: `Safe to pull ${fmtMoney(roundedSafe)} at end of ${monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} — keeps ${worstMonthLabel}'s lowest point (the roughest of the next 3 months) at $0 or above`
             });
           }
         }
@@ -5464,7 +5470,7 @@
 
       // Suggested opportunities
       document.getElementById('payoffSuggestThresholdInput').value = state.payoffSuggestThreshold || 0;
-      const suggestions = computeSuggestedLumpSums();
+      const suggestions = computeSuggestedLumpSums(result.months);
       const suggList = document.getElementById('payoffSuggestionsList');
       const suggHint = document.getElementById('payoffSuggestionsEmptyHint');
       if (suggestions.length === 0) {
@@ -5612,17 +5618,33 @@
     }
 
 
+    function openBudgetModal(id) {
+      const b = id ? state.budgets.find(x => x.id === id) : null;
+      document.getElementById('budgetModalTitle').textContent = b ? 'Edit Monthly Budget' : 'Add Monthly Budget';
+      document.getElementById('budgetEditId').value = b ? b.id : '';
+      document.getElementById('budType').value = b ? (b.type || 'expense') : 'expense';
+      document.getElementById('budCategory').value = b ? b.category : (state.categories[0] ? state.categories[0].name : '');
+      document.getElementById('budLimit').value = b ? b.limit : '';
+      openModal('budgetModal');
+    }
+
     function saveBudget(e) {
       e.preventDefault();
+      const editId = document.getElementById('budgetEditId').value;
       const category = document.getElementById('budCategory').value;
       const type = document.getElementById('budType').value || 'expense';
       const limit = parseFloat(document.getElementById('budLimit').value) || 0;
 
-      const existing = state.budgets.find(b => b.category === category && (b.type || 'expense') === type);
-      if (existing) {
-        existing.limit = limit;
+      if (editId) {
+        const b = state.budgets.find(x => x.id === editId);
+        if (b) { b.category = category; b.type = type; b.limit = limit; }
       } else {
-        state.budgets.push({ id: 'b-' + Date.now(), category, type, limit });
+        const existing = state.budgets.find(b => b.category === category && (b.type || 'expense') === type);
+        if (existing) {
+          existing.limit = limit;
+        } else {
+          state.budgets.push({ id: 'b-' + Date.now(), category, type, limit });
+        }
       }
 
       closeModal('budgetModal');
