@@ -964,7 +964,7 @@
             <input type="checkbox" id="txTrackOnly" onchange="updateTxDebtLinkVisibility()" class="w-4 h-4 rounded text-amber-500 focus:ring-amber-500">
             <span class="text-xs font-semibold text-gray-700">Budget Tracking Only</span>
             <span class="info-tip inline-block align-middle">
-              <span class="info-icon-btn" onclick="toggleInfoTip('infoTrackOnly', event)" title="More info"><i class="fa-solid fa-info"></i></span>
+              <span class="info-icon-btn" onclick="event.preventDefault(); toggleInfoTip('infoTrackOnly', event)" title="More info"><i class="fa-solid fa-info"></i></span>
               <span id="infoTrackOnly" class="info-tip-bubble hidden">For expenses paid another way (gift card, reimbursed, cash someone else covered) that you still want counted in categories and budgets, without pulling money out of the account above.</span>
             </span>
           </label>
