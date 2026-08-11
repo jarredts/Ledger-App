@@ -742,7 +742,7 @@
           <p class="text-[10px] text-gray-400 leading-relaxed">
             <strong>Not financial advice.</strong> This app is a personal budgeting and forecasting tool provided as-is, with no warranty of any kind. It does not constitute financial, legal, tax, or investment advice, and its creator is not a financial advisor. All calculations are estimates based on the numbers you enter and may contain errors — verify anything important against your actual account statements. You are solely responsible for your own financial decisions and outcomes.
           </p>
-          <p class="text-[10px] text-gray-400 text-center">Version 415.11.14</p>
+          <p class="text-[10px] text-gray-400 text-center">Version 415.11.15</p>
         </div>
       </div>
     </div>
@@ -786,6 +786,11 @@
         <div>
           <div class="font-bold text-gray-900 mb-1">Overriding a day's balance directly</div>
           <p>If you just want to force what a specific day's total balance shows (bypassing all the math), tap that day and use <b>Override</b>. Useful for correcting a known number without digging into individual transactions.</p>
+        </div>
+
+        <div>
+          <div class="font-bold text-gray-900 mb-1">Logging an expense that didn't touch your balance</div>
+          <p>Check <b>Track only — don't affect balance</b> when adding a transaction (e.g. something paid with a gift card, or reimbursed). It still counts toward its category and any budget, and shows up in the day view, Log, and Month Report — it just won't pull money out of the account in the balance math.</p>
         </div>
 
         <div>
@@ -934,6 +939,14 @@
           <p class="text-[9px] text-gray-400 mt-0.5">Moves money between your own cash accounts — logged as one linked entry on each account, doesn't count as income or spending in Budgets. Recurring transfers aren't supported yet; log each one manually.</p>
         </div>
         <input id="txDate" type="date" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
+
+        <div id="txTrackOnlyWrap" class="p-2.5 rounded-lg bg-gray-50 border border-gray-200">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="txTrackOnly" onchange="updateTxDebtLinkVisibility()" class="w-4 h-4 rounded text-amber-500 focus:ring-amber-500">
+            <span class="text-xs font-semibold text-gray-700">Track only — don't affect balance</span>
+          </label>
+          <p class="text-[9px] text-gray-400 mt-1 pl-6">For expenses paid another way (gift card, reimbursed, cash someone else covered) that you still want counted in categories and budgets, without pulling money out of the account above.</p>
+        </div>
 
         <div id="txDebtLinkWrap" class="hidden p-2.5 rounded-lg bg-blue-50 border border-blue-200 space-y-1">
           <label class="block text-[10px] font-bold text-blue-800">APPLY TO WHICH DEBT?</label>
@@ -1919,6 +1932,7 @@
       // total from today forward is completely unaffected by the archive.
       const deltaByAccount = {};
       toArchive.forEach(t => {
+        if (t.trackOnly) return; // never affected balance, so folding it in would double-count
         const delta = t.type === 'income' ? t.amount : -t.amount;
         deltaByAccount[t.accountId] = (deltaByAccount[t.accountId] || 0) + delta;
       });
@@ -2841,7 +2855,7 @@
         .reduce((s, a) => s + a.balance, 0);
 
       const txDelta = state.transactions
-        .filter(t => isAccountActive(t.accountId) && t.date <= targetDateStr)
+        .filter(t => isAccountActive(t.accountId) && t.date <= targetDateStr && !t.trackOnly)
         .reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
 
       let recurringDelta = 0;
@@ -2857,6 +2871,7 @@
         const k = formatLocalDate(cur);
         const dayRecs = getRecurringForDate(k);
         dayRecs.forEach(r => {
+          if (r.trackOnly) return;
           recurringDelta += (r.type === 'income' ? r.amount : -r.amount);
         });
         cur.setDate(cur.getDate() + 1);
@@ -3318,6 +3333,7 @@
                     <span class="${t.type === 'income' ? 'text-emerald-700' : 'text-red-600'} font-mono font-bold ${isPaid ? 'line-through' : ''}">${t.type === 'income' ? '+' : '-'}${fmtMoney(t.amount)} · ${t.desc}</span>
                     ${t.isRecurring ? `<span class="ml-1 text-[9px] text-amber-700 font-mono font-bold uppercase">(Recurring)</span>` : ''}
                     ${t.isTransfer ? `<span class="ml-1 text-[9px] text-blue-700 font-mono font-bold uppercase"><i class="fa-solid fa-right-left"></i> Transfer</span>` : ''}
+                    ${t.trackOnly ? `<span class="ml-1 text-[9px] text-gray-500 font-mono font-bold uppercase"><i class="fa-solid fa-eye"></i> Track Only</span>` : ''}
                     ${isPaid ? `<span class="ml-1 text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold uppercase">PAID</span>` : ''}
                   </div>
                 </div>
@@ -3387,7 +3403,7 @@
               <div class="flex items-center gap-2">
                 <input type="checkbox" ${isPaid ? 'checked' : ''} onchange="togglePaid('${t.id}')" title="Mark as Paid/Cleared" class="w-3.5 h-3.5 text-emerald-600 rounded cursor-pointer flex-shrink-0">
                 <div>
-                  <div class="font-bold text-gray-900 ${isPaid ? 'line-through' : ''}">${t.desc} ${isPaid ? `<span class="ml-1 text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold uppercase">PAID</span>` : ''} ${t.isTransfer ? `<span class="ml-1 text-[9px] bg-blue-100 text-blue-800 px-1 py-0.5 rounded font-bold uppercase"><i class="fa-solid fa-right-left"></i> Transfer</span>` : ''}</div>
+                  <div class="font-bold text-gray-900 ${isPaid ? 'line-through' : ''}">${t.desc} ${isPaid ? `<span class="ml-1 text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold uppercase">PAID</span>` : ''} ${t.isTransfer ? `<span class="ml-1 text-[9px] bg-blue-100 text-blue-800 px-1 py-0.5 rounded font-bold uppercase"><i class="fa-solid fa-right-left"></i> Transfer</span>` : ''} ${t.trackOnly ? `<span class="ml-1 text-[9px] bg-gray-200 text-gray-700 px-1 py-0.5 rounded font-bold uppercase"><i class="fa-solid fa-eye"></i> Track Only</span>` : ''}</div>
                   <div class="text-[10px] text-gray-500 font-mono">${t.date} · ${t.category || 'General'} · ${getAccountName(t.accountId)}</div>
                 </div>
               </div>
@@ -3983,8 +3999,9 @@
       const cat = document.getElementById('txCategory').value || '';
       const type = document.getElementById('txType').value;
       const acct = document.getElementById('txAccount').value || '';
+      const trackOnly = document.getElementById('txTrackOnly').checked;
       const wrap = document.getElementById('txDebtLinkWrap');
-      const show = type === 'expense' && /debt/i.test(cat) && acct && !acct.startsWith('debt-');
+      const show = !trackOnly && type === 'expense' && /debt/i.test(cat) && acct && !acct.startsWith('debt-');
       wrap.classList.toggle('hidden', !show);
       if (!show) document.getElementById('txDebtAccount').value = '';
     }
@@ -4000,10 +4017,12 @@
       document.getElementById('txToAccountWrap').classList.toggle('hidden', !isTransfer);
       document.getElementById('txAccountLabel').classList.toggle('hidden', !isTransfer);
       document.getElementById('txRecurringToggleWrap').classList.toggle('hidden', isTransfer);
+      document.getElementById('txTrackOnlyWrap').classList.toggle('hidden', isTransfer);
 
       if (isTransfer) {
         document.getElementById('txIsRecurring').checked = false;
         toggleTxRecurringOptions();
+        document.getElementById('txTrackOnly').checked = false;
         document.getElementById('txDebtLinkWrap').classList.add('hidden');
         document.getElementById('txDebtAccount').value = '';
       } else {
@@ -4024,6 +4043,7 @@
         document.getElementById('txCategory').value = t.category || 'Unassigned';
         document.getElementById('txDate').value = t.date;
         document.getElementById('txModalTitle').textContent = 'Edit Transaction';
+        document.getElementById('txTrackOnly').checked = !!t.trackOnly;
 
         document.getElementById('txDebtAccount').value = '';
 
@@ -4058,6 +4078,7 @@
         document.getElementById('txCategory').value = 'Unassigned';
         document.getElementById('txDate').value = selectedDateStr;
         document.getElementById('txModalTitle').textContent = 'Add Transaction Entry';
+        document.getElementById('txTrackOnly').checked = false;
         document.getElementById('txDebtAccount').value = '';
       }
       updateTxTypeUI();
@@ -4130,6 +4151,7 @@
       }
 
       const debtLinkId = document.getElementById('txDebtAccount').value;
+      const trackOnly = document.getElementById('txTrackOnly').checked;
       const data = {
         id: id || 'tx-' + Date.now(),
         desc: document.getElementById('txDesc').value,
@@ -4138,7 +4160,8 @@
         type: document.getElementById('txType').value,
         accountId: document.getElementById('txAccount').value,
         date: document.getElementById('txDate').value,
-        isPaid: true
+        isPaid: true,
+        trackOnly: trackOnly
       };
 
       const isRecurring = document.getElementById('txIsRecurring').checked;
@@ -4156,6 +4179,7 @@
           startDate: data.date,
           endType: 'never',
           accountId: data.accountId,
+          trackOnly: trackOnly,
           // This is the fix: previously debtLinkId was only ever applied to
           // one-time entries — a recurring entry ignored it completely, so
           // it showed up as a Cash Calendar outflow but never touched the
@@ -5057,7 +5081,7 @@
           if (anchor > earliestDate) earliestDate = anchor;
         }
 
-        const cashTransactions = state.transactions.filter(t => !(t.accountId || '').startsWith('debt-'));
+        const cashTransactions = state.transactions.filter(t => !(t.accountId || '').startsWith('debt-') && !t.trackOnly);
 
         const txByDate = {};
         cashTransactions.forEach(t => {
@@ -5079,7 +5103,7 @@
         while (cur <= horizonEnd) {
           const k = formatLocalDate(cur);
           runningBalance += (txByDate[k] || 0);
-          getRecurringForDate(k).forEach(r => { runningBalance += (r.type === 'income' ? r.amount : -r.amount); });
+          getRecurringForDate(k).forEach(r => { if (!r.trackOnly) runningBalance += (r.type === 'income' ? r.amount : -r.amount); });
 
           const curMonthKey = `${cur.getFullYear()}-${cur.getMonth()}`;
           if (monthMinBalance[curMonthKey] === undefined || runningBalance < monthMinBalance[curMonthKey]) {
