@@ -418,7 +418,6 @@
           <button id="btnStratCustom" onclick="setPayoffStrategy('custom')" class="flex-1 py-1.5 rounded-lg text-xs font-bold">Custom</button>
         </div>
         <p id="payoffStrategyHint" class="text-[10px] text-gray-400 px-1"></p>
-        <p id="payoffPinnedHint" class="hidden text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5"></p>
 
         <!-- Headline debt-free date -->
         <div class="p-4 rounded-xl bg-white border border-gray-300 shadow-sm text-center">
@@ -742,7 +741,7 @@
           <p class="text-[10px] text-gray-400 leading-relaxed">
             <strong>Not financial advice.</strong> This app is a personal budgeting and forecasting tool provided as-is, with no warranty of any kind. It does not constitute financial, legal, tax, or investment advice, and its creator is not a financial advisor. All calculations are estimates based on the numbers you enter and may contain errors — verify anything important against your actual account statements. You are solely responsible for your own financial decisions and outcomes.
           </p>
-          <p class="text-[10px] text-gray-400 text-center">Version 415.11.15</p>
+          <p class="text-[10px] text-gray-400 text-center">Version 415.11.16</p>
         </div>
       </div>
     </div>
@@ -831,10 +830,14 @@
   <div id="overrideModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
     <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-xl">
       <div class="flex justify-between items-center">
-        <h3 class="font-bold text-base text-gray-900">Manual Day Balance Override</h3>
+        <h3 class="font-bold text-base text-gray-900 flex items-center gap-1.5">Manual Day Balance Override
+          <span class="info-tip inline-block align-middle">
+            <span class="info-icon-btn" onclick="toggleInfoTip('infoOverrideModal', event)" title="More info"><i class="fa-solid fa-info"></i></span>
+            <span id="infoOverrideModal" class="info-tip-bubble hidden">Forces the projected cumulative balance for this specific date, bypassing calculations prior to it.</span>
+          </span>
+        </h3>
         <button onclick="closeModal('overrideModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
       </div>
-      <p class="text-xs text-gray-500">Forces the projected cumulative balance for this specific date, bypassing calculations prior to it.</p>
       <form onsubmit="saveBalanceOverride(event)" class="space-y-3">
         <input id="overrideAmount" type="number" step="0.01" placeholder="Forced Balance ($)" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
         <div class="flex gap-2">
@@ -849,10 +852,14 @@
   <div id="updateBalanceModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
     <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-xl">
       <div class="flex justify-between items-center">
-        <h3 id="updateBalModalTitle" class="font-bold text-base text-gray-900">Update Balance</h3>
+        <h3 class="font-bold text-base text-gray-900 flex items-center gap-1.5"><span id="updateBalModalTitle">Update Balance</span>
+          <span class="info-tip inline-block align-middle">
+            <span class="info-icon-btn" onclick="toggleInfoTip('infoUpdateBalModal', event)" title="More info"><i class="fa-solid fa-info"></i></span>
+            <span id="infoUpdateBalModal" class="info-tip-bubble hidden">Tell it what this account's balance actually is right now (like after checking your bank app), and it'll log an adjustment to reconcile — your transaction history stays intact.</span>
+          </span>
+        </h3>
         <button onclick="closeModal('updateBalanceModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
       </div>
-      <p class="text-xs text-gray-500">Tell it what this account's balance actually is right now (like after checking your bank app), and it'll log an adjustment to reconcile — your transaction history stays intact.</p>
       <div class="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-2">
         Currently calculated: <span id="updateBalCurrentCalc" class="font-mono font-bold text-gray-900">$0.00</span>
       </div>
@@ -866,10 +873,14 @@
   <div id="extraPaymentModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
     <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-3 shadow-xl">
       <div class="flex justify-between items-center">
-        <h3 id="extraPaymentModalTitle" class="font-bold text-base text-gray-900">Log a Payment</h3>
+        <h3 class="font-bold text-base text-gray-900 flex items-center gap-1.5"><span id="extraPaymentModalTitle">Log a Payment</span>
+          <span class="info-tip inline-block align-middle">
+            <span class="info-icon-btn" onclick="toggleInfoTip('infoExtraPaymentModal', event)" title="More info"><i class="fa-solid fa-info"></i></span>
+            <span id="infoExtraPaymentModal" class="info-tip-bubble hidden">Handles both sides for you — money leaving the account below, and the balance drop on the debt — as one linked pair.</span>
+          </span>
+        </h3>
         <button onclick="closeModal('extraPaymentModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
       </div>
-      <p class="text-xs text-gray-500">Handles both sides for you — money leaving the account below, and the balance drop on the debt — as one linked pair.</p>
       <input id="extraPaymentDebtId" type="hidden">
       <div>
         <label class="block text-[10px] font-bold text-gray-500 mb-0.5">AMOUNT ($)</label>
@@ -895,10 +906,14 @@
   <div id="debtPaymentOverrideModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
     <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-xl">
       <div class="flex justify-between items-center">
-        <h3 id="debtOverrideModalTitle" class="font-bold text-base text-gray-900">Override This Payment</h3>
+        <h3 class="font-bold text-base text-gray-900 flex items-center gap-1.5"><span id="debtOverrideModalTitle">Override This Payment</span>
+          <span class="info-tip inline-block align-middle">
+            <span class="info-icon-btn" onclick="toggleInfoTip('infoDebtOverrideModal', event)" title="More info"><i class="fa-solid fa-info"></i></span>
+            <span id="infoDebtOverrideModal" class="info-tip-bubble hidden">Changes just this one scheduled payment — useful for an extra or payoff amount on a specific date. Future payments go back to the normal amount unless the balance is fully paid off by then.</span>
+          </span>
+        </h3>
         <button onclick="closeModal('debtPaymentOverrideModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
       </div>
-      <p class="text-xs text-gray-500">Changes just this one scheduled payment — useful for an extra or payoff amount on a specific date. Future payments go back to the normal amount unless the balance is fully paid off by then.</p>
       <input id="debtOverrideDebtId" type="hidden">
       <input id="debtOverrideDate" type="hidden">
       <input id="debtOverrideAmount" type="number" step="0.01" placeholder="Payment amount for this date ($)" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
@@ -934,24 +949,36 @@
           <select id="txAccount" onchange="updateTxDebtLinkVisibility()" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
         </div>
         <div id="txToAccountWrap" class="hidden">
-          <label class="block text-[10px] text-gray-500 mb-0.5">TO ACCOUNT</label>
+          <label class="flex items-center gap-1.5 text-[10px] text-gray-500 mb-0.5">TO ACCOUNT
+            <span class="info-tip inline-block align-middle">
+              <span class="info-icon-btn" onclick="toggleInfoTip('infoToAccount', event)" title="More info"><i class="fa-solid fa-info"></i></span>
+              <span id="infoToAccount" class="info-tip-bubble hidden">Moves money between your own cash accounts — logged as one linked entry on each account, doesn't count as income or spending in Budgets. Recurring transfers aren't supported yet; log each one manually.</span>
+            </span>
+          </label>
           <select id="txToAccount" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
-          <p class="text-[9px] text-gray-400 mt-0.5">Moves money between your own cash accounts — logged as one linked entry on each account, doesn't count as income or spending in Budgets. Recurring transfers aren't supported yet; log each one manually.</p>
         </div>
         <input id="txDate" type="date" required class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
 
         <div id="txTrackOnlyWrap" class="p-2.5 rounded-lg bg-gray-50 border border-gray-200">
           <label class="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" id="txTrackOnly" onchange="updateTxDebtLinkVisibility()" class="w-4 h-4 rounded text-amber-500 focus:ring-amber-500">
-            <span class="text-xs font-semibold text-gray-700">Track only — don't affect balance</span>
+            <span class="text-xs font-semibold text-gray-700">Budget Tracking Only</span>
+            <span class="info-tip inline-block align-middle">
+              <span class="info-icon-btn" onclick="toggleInfoTip('infoTrackOnly', event)" title="More info"><i class="fa-solid fa-info"></i></span>
+              <span id="infoTrackOnly" class="info-tip-bubble hidden">For expenses paid another way (gift card, reimbursed, cash someone else covered) that you still want counted in categories and budgets, without pulling money out of the account above.</span>
+            </span>
           </label>
-          <p class="text-[9px] text-gray-400 mt-1 pl-6">For expenses paid another way (gift card, reimbursed, cash someone else covered) that you still want counted in categories and budgets, without pulling money out of the account above.</p>
         </div>
 
         <div id="txDebtLinkWrap" class="hidden p-2.5 rounded-lg bg-blue-50 border border-blue-200 space-y-1">
-          <label class="block text-[10px] font-bold text-blue-800">APPLY TO WHICH DEBT?</label>
+          <label class="flex items-center gap-1.5">
+            <span class="text-[10px] font-bold text-blue-800">APPLY TO WHICH DEBT?</span>
+            <span class="info-tip inline-block align-middle">
+              <span class="info-icon-btn" onclick="toggleInfoTip('infoDebtLink', event)" title="More info"><i class="fa-solid fa-info"></i></span>
+              <span id="infoDebtLink" class="info-tip-bubble hidden">Pick one and we'll also log the matching payment on that debt's balance — linked to this entry, so editing or deleting either side keeps both in sync.</span>
+            </span>
+          </label>
           <select id="txDebtAccount" onchange="updateTxDebtLinkVisibility()" class="w-full bg-white border border-blue-300 rounded-lg p-2 text-xs text-gray-800"></select>
-          <p class="text-[9px] text-blue-700">Pick one and we'll also log the matching payment on that debt's balance — linked to this entry, so editing or deleting either side keeps both in sync.</p>
         </div>
         
         <div id="txRecurringToggleWrap" class="pt-2 border-t border-gray-200 space-y-2">
@@ -1053,9 +1080,13 @@
           <select id="recAccount" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
         </div>
         <div id="recToAccountWrap" class="hidden">
-          <label class="text-[10px] text-gray-500 block mb-1">TO ACCOUNT</label>
+          <label class="flex items-center gap-1.5 text-[10px] text-gray-500 mb-1">TO ACCOUNT
+            <span class="info-tip inline-block align-middle">
+              <span class="info-icon-btn" onclick="toggleInfoTip('infoRecToAccount', event)" title="More info"><i class="fa-solid fa-info"></i></span>
+              <span id="infoRecToAccount" class="info-tip-bubble hidden">Runs on this schedule as a linked pair — doesn't count as income or spending in Budgets.</span>
+            </span>
+          </label>
           <select id="recToAccount" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800"></select>
-          <p class="text-[9px] text-gray-400 mt-0.5">Runs on this schedule as a linked pair — doesn't count as income or spending in Budgets.</p>
         </div>
         <button type="submit" class="w-full bg-amber-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-amber-600">Save Recurring Rule</button>
       </form>
@@ -1181,10 +1212,14 @@
 
         <div class="p-2.5 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-[10px] font-bold text-blue-800 uppercase">Payment Periods</span>
+            <span class="flex items-center gap-1.5 text-[10px] font-bold text-blue-800 uppercase">Payment Periods
+              <span class="info-tip inline-block align-middle">
+                <span class="info-icon-btn" onclick="toggleInfoTip('infoPaymentPeriods', event)" title="More info"><i class="fa-solid fa-info"></i></span>
+                <span id="infoPaymentPeriods" class="info-tip-bubble hidden">Schedule the payment amount to change on a future date — pay extra starting whenever you can afford it, or change it after a promo ends — without splitting this into a second account. Each period applies from its start date until the next one begins (or indefinitely, if it's the last one).</span>
+              </span>
+            </span>
             <button type="button" onclick="addDebtPaymentPeriod()" class="text-[10px] font-semibold text-blue-700 hover:text-blue-900">+ Add Period</button>
           </div>
-          <p class="text-[9px] text-gray-500">Schedule the payment amount to change on a future date — pay extra starting whenever you can afford it, or change it after a promo ends — without splitting this into a second account. Each period applies from its start date until the next one begins (or indefinitely, if it's the last one).</p>
           <p id="debtPaymentPeriodsEmptyHint" class="hidden text-[10px] text-gray-400 italic">No scheduled changes — using Target Payment above for the life of the debt.</p>
           <div id="debtPaymentPeriodsList" class="space-y-1.5"></div>
         </div>
@@ -5448,25 +5483,6 @@
       const lumpSums = state.payoffLumpSums || [];
       const extraPeriods = state.payoffExtraPeriods || [];
       document.getElementById('payoffExtraMonthlyInput').value = extraMonthly;
-
-      // If most extra dollars are lump sums pinned to a specific debt (rather than
-      // "whichever's next"), the Avalanche/Snowball/Custom order has little left to
-      // influence — those dollars go where you pointed them regardless of strategy.
-      // Surface that plainly so a matching debt-free date across strategies doesn't
-      // read as a bug.
-      {
-        const pinnedTotal = lumpSums.filter(ls => ls.debtId && ls.debtId !== 'next').reduce((s, ls) => s + (parseFloat(ls.amount) || 0), 0);
-        const flexibleTotal = lumpSums.filter(ls => !ls.debtId || ls.debtId === 'next').reduce((s, ls) => s + (parseFloat(ls.amount) || 0), 0);
-        const monthsEstimate = 24; // rough horizon for weighing extraMonthly against one-time lump sums
-        const flexiblePool = flexibleTotal + (extraMonthly * monthsEstimate);
-        const pinnedHintEl = document.getElementById('payoffPinnedHint');
-        if (pinnedTotal > 0 && pinnedTotal > flexiblePool) {
-          pinnedHintEl.textContent = `Heads up: ${fmtMoney(pinnedTotal)} of your lump sums are pinned to specific accounts, so they pay off those debts on schedule no matter which strategy is selected. Your Avalanche/Snowball/Custom choice only affects the smaller pool (Extra Monthly + "whichever's next" lump sums) — that's likely why your debt-free date isn't changing much between strategies. Total interest can still differ even when the date doesn't.`;
-          pinnedHintEl.classList.remove('hidden');
-        } else {
-          pinnedHintEl.classList.add('hidden');
-        }
-      }
 
       const result = simulateDebtPayoff(order, extraMonthly, minOverrides, lumpSums, extraPeriods, strategy);
       document.getElementById('payoffFreeDate').textContent = fmtPayoffDate(result.months);
