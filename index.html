@@ -522,24 +522,43 @@
         </div>
       </div>
 
-      <div class="p-3 bg-white rounded-xl border border-gray-300 shadow-sm space-y-2">
-        <div class="flex items-center justify-between">
-          <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Budget Time Filter</label>
-          <button onclick="resetBudgetFilter()" class="text-[10px] text-amber-600 font-semibold hover:underline">Reset to Current Month</button>
+      <button onclick="toggleBudgetFilters()" class="w-full flex items-center justify-between gap-2 bg-white border border-gray-300 rounded-xl px-3 py-2 shadow-sm text-left">
+        <div class="min-w-0">
+          <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Filters</div>
+          <div id="budgetFiltersSummaryLabel" class="text-xs font-medium text-gray-800 truncate">August 2026 &middot; All Cash Accounts</div>
         </div>
-        <div class="grid grid-cols-2 gap-2">
-          <select id="budgetFilterMode" onchange="toggleBudgetFilterUI()" class="select-custom bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs font-medium text-gray-800">
-            <option value="month">Specific Month</option>
-            <option value="range">Date Range</option>
-            <option value="all">All Time / Indefinite</option>
-          </select>
-          <div id="budgetMonthContainer">
-            <input id="budgetFilterMonthInput" type="month" onchange="renderBudgetsAndCategories(); saveViewState();" class="bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800 w-full">
+        <i id="budgetFiltersDrawerChevron" class="fa-solid fa-chevron-down text-gray-400 text-[11px] transition-transform shrink-0"></i>
+      </button>
+
+      <div id="budgetFiltersDrawer" class="hidden p-3 bg-white rounded-xl border border-gray-300 shadow-sm space-y-3">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Time Period</label>
+            <button onclick="resetBudgetFilter()" class="text-[10px] text-amber-600 font-semibold hover:underline">Reset to Current Month</button>
           </div>
-          <div id="budgetRangeContainer" class="hidden grid grid-cols-2 gap-1 col-span-2">
-            <input id="budgetFilterStart" type="date" onchange="renderBudgetsAndCategories(); saveViewState();" class="bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
-            <input id="budgetFilterEnd" type="date" onchange="renderBudgetsAndCategories(); saveViewState();" class="bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
+          <div class="grid grid-cols-2 gap-2">
+            <select id="budgetFilterMode" onchange="toggleBudgetFilterUI()" class="select-custom bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs font-medium text-gray-800">
+              <option value="month">Specific Month</option>
+              <option value="range">Date Range</option>
+              <option value="all">All Time / Indefinite</option>
+            </select>
+            <div id="budgetMonthContainer">
+              <input id="budgetFilterMonthInput" type="month" onchange="renderBudgetsAndCategories(); saveViewState();" class="bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800 w-full">
+            </div>
+            <div id="budgetRangeContainer" class="hidden grid grid-cols-2 gap-1 col-span-2">
+              <input id="budgetFilterStart" type="date" onchange="renderBudgetsAndCategories(); saveViewState();" class="bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
+              <input id="budgetFilterEnd" type="date" onchange="renderBudgetsAndCategories(); saveViewState();" class="bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-gray-800">
+            </div>
           </div>
+        </div>
+
+        <div class="border-t border-gray-200 pt-2 space-y-1">
+          <label class="text-[10px] font-mono font-bold text-gray-500 uppercase">Accounts</label>
+          <button onclick="openModal('budgetAccountFilterModal')" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs font-medium text-gray-800 shadow-sm flex justify-between items-center text-left">
+            <span id="budgetAccountFilterLabel" class="truncate">All Cash Accounts Combined</span>
+            <i class="fa-solid fa-chevron-down text-gray-500 text-[10px] ml-1"></i>
+          </button>
+          <p class="text-[9px] text-gray-400">Separate from the Forecast tab's account filter — e.g. keep Forecast narrowed to just your bills account, while Budgets still counts income landing in a different account.</p>
         </div>
       </div>
 
@@ -596,6 +615,27 @@
         </div>
 
         <button onclick="applyMultiAccountFilter()" class="w-full bg-amber-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-amber-600 mt-2">
+          Apply Filter
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Budget Account Filter Modal (independent of the Forecast tab's filter) -->
+  <div id="budgetAccountFilterModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-300 w-full max-w-md rounded-2xl p-5 space-y-4 shadow-xl max-h-[80vh] overflow-y-auto">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-base text-gray-900">Filter Budgets by Account</h3>
+        <button onclick="closeModal('budgetAccountFilterModal')" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+      </div>
+      <p class="text-xs text-gray-500">Which cash accounts' income and spending count toward the totals and budget categories on this tab. Separate from the Forecast tab's account filter.</p>
+      <div class="space-y-3 text-xs">
+        <label class="flex items-center gap-2 font-bold text-amber-700 p-2 bg-amber-50 rounded-lg cursor-pointer">
+          <input type="checkbox" id="chkBudgetFilterAll" onchange="toggleAllBudgetAccountFilters(this.checked)" class="w-4 h-4 text-amber-500 rounded">
+          <span>Select All Cash Accounts Combined</span>
+        </label>
+        <div id="budgetAccountFilterList" class="space-y-1.5 pl-1 border-t border-gray-200 pt-2"></div>
+        <button onclick="applyBudgetAccountFilter()" class="w-full bg-amber-500 text-white font-semibold py-2 rounded-lg text-xs hover:bg-amber-600 mt-2">
           Apply Filter
         </button>
       </div>
@@ -741,7 +781,7 @@
           <p class="text-[10px] text-gray-400 leading-relaxed">
             <strong>Not financial advice.</strong> This app is a personal budgeting and forecasting tool provided as-is, with no warranty of any kind. It does not constitute financial, legal, tax, or investment advice, and its creator is not a financial advisor. All calculations are estimates based on the numbers you enter and may contain errors — verify anything important against your actual account statements. You are solely responsible for your own financial decisions and outcomes.
           </p>
-          <p class="text-[10px] text-gray-400 text-center">Version 415.11.16</p>
+          <p class="text-[10px] text-gray-400 text-center">Version 415.11.17</p>
         </div>
       </div>
     </div>
@@ -1505,6 +1545,11 @@
 
     let selectedLiquidAccountIds = ['all']; 
     let selectedDebtAccountIds = ['all'];
+    // Independent from the Forecast tab's account filter (see request that
+    // led to this) — Budgets always uses its own selection so narrowing the
+    // Forecast calendar to a bills-only account doesn't also hide income
+    // that lands in a different account from the Budget totals.
+    let selectedBudgetAccountIds = ['all'];
 
     function persist() {
       try {
@@ -2146,6 +2191,7 @@
 
     function openModal(id) { 
       if (id === 'multiAccountFilterModal') renderMultiAccountFilterUI();
+      if (id === 'budgetAccountFilterModal') renderBudgetAccountFilterUI();
       if (id === 'settingsModal') { updateRetentionStatusLine(); refreshReminderUI(); updateDarkModeToggleUI(); }
       document.getElementById(id).classList.remove('hidden'); 
     }
@@ -2418,6 +2464,7 @@
           subView: getCurrentSubView(),
           selectedLiquidAccountIds,
           selectedDebtAccountIds,
+          selectedBudgetAccountIds,
           budgetFilterMode: modeSelect ? modeSelect.value : undefined,
           budgetFilterMonth: monthInput ? monthInput.value : undefined,
           budgetFilterStart: startInput ? startInput.value : undefined,
@@ -2447,6 +2494,7 @@
       forecastCustomDate = vs.forecastCustomDate || null;
       if (Array.isArray(vs.selectedLiquidAccountIds) && vs.selectedLiquidAccountIds.length) selectedLiquidAccountIds = vs.selectedLiquidAccountIds;
       if (Array.isArray(vs.selectedDebtAccountIds) && vs.selectedDebtAccountIds.length) selectedDebtAccountIds = vs.selectedDebtAccountIds;
+      if (Array.isArray(vs.selectedBudgetAccountIds) && vs.selectedBudgetAccountIds.length) selectedBudgetAccountIds = vs.selectedBudgetAccountIds;
 
       const rangeSelect = document.getElementById('forecastRangeSelect');
       const customContainer = document.getElementById('forecastCustomDateContainer');
@@ -2557,6 +2605,51 @@
 
       closeModal('multiAccountFilterModal');
       renderApp();
+      saveViewState();
+    }
+
+    // --- BUDGET TAB'S OWN ACCOUNT FILTER ---
+    // Intentionally separate from selectedLiquidAccountIds above, which the
+    // Forecast tab owns — narrowing Forecast to a bills-only account should
+    // not also hide income that lands in a different account from Budgets.
+    function toggleBudgetFilters() {
+      const drawer = document.getElementById('budgetFiltersDrawer');
+      const chevron = document.getElementById('budgetFiltersDrawerChevron');
+      drawer.classList.toggle('hidden');
+      chevron.classList.toggle('rotate-180');
+    }
+
+    function renderBudgetAccountFilterUI() {
+      const isAll = selectedBudgetAccountIds.includes('all');
+      document.getElementById('chkBudgetFilterAll').checked = isAll;
+      document.getElementById('budgetAccountFilterList').innerHTML = state.accounts.map(a => `
+        <label class="flex items-center gap-2 cursor-pointer text-gray-800">
+          <input type="checkbox" class="chk-budget-acc-filter w-4 h-4 text-amber-500 rounded" value="${a.id}" ${isAll || selectedBudgetAccountIds.includes(a.id) ? 'checked' : ''}>
+          <span>${a.name}</span>
+        </label>
+      `).join('');
+    }
+
+    function toggleAllBudgetAccountFilters(checked) {
+      document.querySelectorAll('.chk-budget-acc-filter').forEach(chk => chk.checked = checked);
+    }
+
+    function applyBudgetAccountFilter() {
+      const checkboxes = document.querySelectorAll('.chk-budget-acc-filter');
+      const checkedVals = Array.from(checkboxes).filter(c => c.checked).map(c => c.value);
+
+      if (document.getElementById('chkBudgetFilterAll').checked || checkedVals.length === state.accounts.length || checkedVals.length === 0) {
+        selectedBudgetAccountIds = ['all'];
+      } else {
+        selectedBudgetAccountIds = checkedVals;
+      }
+
+      document.getElementById('budgetAccountFilterLabel').textContent = selectedBudgetAccountIds.includes('all')
+        ? 'All Cash Accounts Combined'
+        : (selectedBudgetAccountIds.length === 1 ? getAccountName(selectedBudgetAccountIds[0]) : `${selectedBudgetAccountIds.length} Accounts Selected`);
+
+      closeModal('budgetAccountFilterModal');
+      renderBudgetsAndCategories();
       saveViewState();
     }
 
@@ -3632,6 +3725,23 @@
         </button>
       `).join('');
 
+      // Budgets use their own account filter (selectedBudgetAccountIds), not
+      // the Forecast tab's — temporarily swap the globals that isAccountActive()
+      // and getRecurringForDate() read, so every calculation below reflects the
+      // Budget tab's own selection, then restore on the way out.
+      const savedMode = activeForecastMode;
+      const savedLiquidIds = selectedLiquidAccountIds;
+      activeForecastMode = 'liquid';
+      selectedLiquidAccountIds = selectedBudgetAccountIds;
+      try {
+        renderBudgetsAndCategoriesInner();
+      } finally {
+        activeForecastMode = savedMode;
+        selectedLiquidAccountIds = savedLiquidIds;
+      }
+    }
+
+    function renderBudgetsAndCategoriesInner() {
       const filterMode = document.getElementById('budgetFilterMode')?.value || 'month';
       let startDateStr = null;
       let endDateStr = null;
@@ -3649,6 +3759,18 @@
         endDateStr = document.getElementById('budgetFilterEnd')?.value || null;
       }
 
+      // Update the collapsed filter button's summary line.
+      const timeLabel = filterMode === 'all' ? 'All Time'
+        : filterMode === 'range' ? (startDateStr && endDateStr ? `${startDateStr} to ${endDateStr}` : 'Custom Range')
+        : (startDateStr ? parseLocalDate(startDateStr).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Pick a month');
+      const acctLabel = selectedBudgetAccountIds.includes('all')
+        ? 'All Cash Accounts'
+        : (selectedBudgetAccountIds.length === 1 ? getAccountName(selectedBudgetAccountIds[0]) : `${selectedBudgetAccountIds.length} Accounts`);
+      const summaryEl = document.getElementById('budgetFiltersSummaryLabel');
+      if (summaryEl) summaryEl.textContent = `${timeLabel} \u00b7 ${acctLabel}`;
+      const acctBtnLabel = document.getElementById('budgetAccountFilterLabel');
+      if (acctBtnLabel) acctBtnLabel.textContent = selectedBudgetAccountIds.includes('all') ? 'All Cash Accounts Combined' : acctLabel;
+
       // --- Period income vs. expense totals (all categories, not just budgeted ones) ---
       // Split into Actual (already happened, date <= today) vs Planned (still projected,
       // date > today) so the numbers aren't a blended guess — matches what's really landed
@@ -3661,7 +3783,7 @@
         let incomeActual = 0, incomePlanned = 0, expenseActual = 0, expensePlanned = 0;
 
         state.transactions.forEach(t => {
-          if (t.isTransfer || (t.accountId || '').startsWith('debt-')) return;
+          if (t.isTransfer || (t.accountId || '').startsWith('debt-') || !isAccountActive(t.accountId)) return;
           if (t.date < startDateStr || t.date > endDateStr) return;
           const isActual = t.date <= todayStr;
           if (t.type === 'income') { if (isActual) incomeActual += t.amount; else incomePlanned += t.amount; }
@@ -3698,7 +3820,7 @@
         const expenseBudgetCats = new Set(state.budgets.filter(b => (b.type || 'expense') === 'expense').map(b => b.category));
         let categorizedExpense = 0;
         state.transactions.forEach(t => {
-          if (t.isTransfer || t.date < startDateStr || t.date > endDateStr || t.type !== 'expense') return;
+          if (t.isTransfer || t.date < startDateStr || t.date > endDateStr || t.type !== 'expense' || !isAccountActive(t.accountId)) return;
           const tCat = t.category || 'Unassigned';
           if (expenseBudgetCats.has(tCat)) categorizedExpense += t.amount;
         });
@@ -3774,6 +3896,7 @@
         const matchingTxs = state.transactions.filter(t => {
           const tCat = t.category || 'Unassigned';
           if (tCat !== b.category || t.type !== bType) return false;
+          if (!isAccountActive(t.accountId)) return false;
           if (startDateStr && t.date < startDateStr) return false;
           if (endDateStr && t.date > endDateStr) return false;
           return true;
@@ -5726,27 +5849,40 @@
 
       const items = [];
 
-      state.transactions.forEach(t => {
-        const tCat = t.category || 'Unassigned';
-        if (tCat !== b.category || t.type !== bType) return;
-        if (startDateStr && t.date < startDateStr) return;
-        if (endDateStr && t.date > endDateStr) return;
-        items.push({ date: t.date, desc: t.desc || '(no description)', amount: t.amount, isActual: t.date <= todayStr });
-      });
+      // Match the same account filter the Budget tab card itself used (see
+      // renderBudgetsAndCategories) so this drilldown's total always agrees
+      // with the number that was tapped to open it.
+      const savedMode = activeForecastMode;
+      const savedLiquidIds = selectedLiquidAccountIds;
+      activeForecastMode = 'liquid';
+      selectedLiquidAccountIds = selectedBudgetAccountIds;
+      try {
+        state.transactions.forEach(t => {
+          const tCat = t.category || 'Unassigned';
+          if (tCat !== b.category || t.type !== bType) return;
+          if (!isAccountActive(t.accountId)) return;
+          if (startDateStr && t.date < startDateStr) return;
+          if (endDateStr && t.date > endDateStr) return;
+          items.push({ date: t.date, desc: t.desc || '(no description)', amount: t.amount, isActual: t.date <= todayStr });
+        });
 
-      if (startDateStr && endDateStr) {
-        let cur = parseLocalDate(startDateStr);
-        const endD = parseLocalDate(endDateStr);
-        while (cur <= endD) {
-          const k = formatLocalDate(cur);
-          getRecurringForDate(k).forEach(r => {
-            const rCat = r.category || 'Unassigned';
-            if (r.type === bType && (rCat === b.category || (!r.category && b.category === 'General'))) {
-              items.push({ date: k, desc: r.desc || '(recurring)', amount: r.amount, isActual: k <= todayStr, isRecurring: true });
-            }
-          });
-          cur.setDate(cur.getDate() + 1);
+        if (startDateStr && endDateStr) {
+          let cur = parseLocalDate(startDateStr);
+          const endD = parseLocalDate(endDateStr);
+          while (cur <= endD) {
+            const k = formatLocalDate(cur);
+            getRecurringForDate(k).forEach(r => {
+              const rCat = r.category || 'Unassigned';
+              if (r.type === bType && (rCat === b.category || (!r.category && b.category === 'General'))) {
+                items.push({ date: k, desc: r.desc || '(recurring)', amount: r.amount, isActual: k <= todayStr, isRecurring: true });
+              }
+            });
+            cur.setDate(cur.getDate() + 1);
+          }
         }
+      } finally {
+        activeForecastMode = savedMode;
+        selectedLiquidAccountIds = savedLiquidIds;
       }
 
       items.sort((a, c) => a.date.localeCompare(c.date));
